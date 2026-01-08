@@ -15,9 +15,9 @@ Sistema de Ponto de Venda (PDV) completo para lojas de bijuterias e maquiagem.
 
 ## Stack Tecnologica
 
-### Backend
-- **Node.js** + **Fastify**
-- **Prisma ORM** + **SQLite**
+### Backend (Vercel Serverless)
+- **Node.js** + **Vercel Functions**
+- **Prisma ORM** + **PostgreSQL** (Neon)
 - **JWT** para autenticacao
 
 ### Frontend
@@ -25,63 +25,101 @@ Sistema de Ponto de Venda (PDV) completo para lojas de bijuterias e maquiagem.
 - **Vite** (build tool)
 - **Tailwind CSS**
 - **Zustand** (state management)
-- **Lucide React** (icones)
 
-## Instalacao
+## Deploy na Vercel
 
-### Pre-requisitos
-- Node.js 18+
-- pnpm (ou npm/yarn)
+### 1. Criar banco de dados PostgreSQL (Neon)
 
-### Backend
+1. Acesse [neon.tech](https://neon.tech) e crie uma conta gratuita
+2. Crie um novo projeto
+3. Copie a connection string (formato: `postgresql://user:pass@host/db`)
+
+### 2. Configurar Vercel
+
+1. Importe o repositorio no [Vercel](https://vercel.com)
+2. Configure as variaveis de ambiente:
+
+| Variavel | Valor |
+|----------|-------|
+| `DATABASE_URL` | Connection string do Neon |
+| `JWT_SECRET` | Uma chave secreta (ex: `minha-chave-secreta-123`) |
+
+3. Deploy!
+
+### 3. Inicializar banco de dados
+
+Apos o primeiro deploy, execute na linha de comando:
 
 ```bash
-cd backend
-pnpm install
-npx prisma migrate dev
+# Instalar dependencias
+npm install
+
+# Aplicar schema no banco
+npx prisma db push
+
+# Popular dados iniciais
 npx prisma db seed
-pnpm dev
 ```
 
-O backend roda em `http://localhost:3000`
-
-### Frontend
+Ou use o Vercel CLI:
 
 ```bash
-cd frontend
-pnpm install
-pnpm dev
+vercel env pull .env.local
+npx prisma db push
+npx prisma db seed
 ```
-
-O frontend roda em `http://localhost:5173`
 
 ## Usuarios Padrao
 
-Apos rodar o seed, voce pode fazer login com:
-
 | Usuario | Senha | Perfil |
 |---------|-------|--------|
-| admin | admin123 | Administrador |
-| operador | operador123 | Operador |
+| admin@fabiloja.com | admin123 | Administrador |
+| operador@fabiloja.com | operador123 | Operador |
+
+## Desenvolvimento Local
+
+### Requisitos
+- Node.js 18+
+- PostgreSQL ou conta no Neon
+
+### Setup
+
+```bash
+# Instalar dependencias raiz
+npm install
+
+# Instalar dependencias frontend
+cd frontend && npm install && cd ..
+
+# Configurar banco (criar .env com DATABASE_URL)
+npx prisma db push
+npx prisma db seed
+
+# Rodar frontend
+cd frontend && npm run dev
+```
 
 ## Estrutura do Projeto
 
 ```
-├── backend/
-│   ├── prisma/
-│   │   ├── schema.prisma    # Modelos do banco
-│   │   └── seed.ts          # Dados iniciais
-│   └── src/
-│       ├── routes/          # Rotas da API
-│       ├── middleware/      # Autenticacao
-│       └── index.ts         # Servidor Fastify
+├── api/                    # Serverless functions (Vercel)
+│   ├── auth/              # Autenticacao
+│   ├── produtos/          # CRUD produtos
+│   ├── vendas/            # Vendas
+│   ├── estoque/           # Movimentacoes
+│   ├── pagamentos/        # Integracao pagamentos
+│   └── lib/               # Prisma, auth helpers
 │
-├── frontend/
+├── frontend/              # React app
 │   └── src/
-│       ├── components/      # Componentes React
-│       ├── pages/           # Paginas da aplicacao
-│       ├── services/        # API e impressao
-│       └── stores/          # Estado global (Zustand)
+│       ├── components/    # Componentes React
+│       ├── pages/         # Paginas
+│       └── services/      # API client
+│
+├── prisma/
+│   └── schema.prisma      # Modelo de dados
+│
+└── vercel.json            # Config Vercel
 ```
 
 ## API Endpoints
@@ -91,63 +129,26 @@ Apos rodar o seed, voce pode fazer login com:
 - `GET /api/auth/me` - Usuario atual
 
 ### Produtos
-- `GET /api/produtos` - Listar produtos
-- `POST /api/produtos` - Criar produto
-- `PUT /api/produtos/:id` - Atualizar produto
-- `DELETE /api/produtos/:id` - Excluir produto
+- `GET /api/produtos` - Listar
+- `POST /api/produtos` - Criar
+- `PUT /api/produtos/:id` - Atualizar
+- `DELETE /api/produtos/:id` - Excluir
+- `GET /api/produtos/codigo/:codigo` - Buscar por codigo
 
 ### Vendas
-- `GET /api/vendas` - Listar vendas
-- `POST /api/vendas` - Criar venda
-- `DELETE /api/vendas/:id` - Cancelar venda
+- `GET /api/vendas` - Listar
+- `POST /api/vendas` - Criar
+- `DELETE /api/vendas/:id` - Cancelar
 
 ### Estoque
-- `POST /api/estoque/entrada` - Entrada de estoque
-- `POST /api/estoque/saida` - Saida de estoque
+- `POST /api/estoque/entrada` - Entrada
+- `POST /api/estoque/saida` - Saida
 - `GET /api/estoque/movimentacoes` - Historico
 
-### Pagamentos
+### Pagamentos (Stone/Mercado Pago)
 - `POST /api/pagamentos/iniciar` - Iniciar transacao
-- `GET /api/pagamentos/:id/status` - Status do pagamento
-- `POST /api/pagamentos/:id/simular` - Simular resposta (demo)
-
-## Configuracao de Impressora
-
-O sistema suporta impressoras termicas via:
-- **USB** (WebUSB API)
-- **Rede** (IP)
-- **Bluetooth**
-
-Modelos pre-configurados:
-- Epson TM-T20, TM-T88
-- Elgin i7, i9
-- Bematech MP-4200
-- Daruma DR800
-- E outros...
-
-## Screenshots
-
-### PDV
-Interface de venda com carrinho, busca e pagamento integrado.
-
-### Dashboard
-Metricas do dia, alertas de estoque, produtos mais vendidos.
-
-### Pagamentos
-Simulacao de maquininha Stone e Mercado Pago Point.
-
-## Deploy
-
-### Backend (Railway/Render)
-1. Configure as variaveis de ambiente
-2. Execute `npx prisma migrate deploy`
-3. Inicie com `pnpm start`
-
-### Frontend (Vercel)
-1. Conecte o repositorio
-2. Configure `VITE_API_URL` para a URL do backend
-3. Build command: `pnpm build`
-4. Output directory: `dist`
+- `GET /api/pagamentos/:id/status` - Status
+- `POST /api/pagamentos/:id/simular` - Simular resposta
 
 ## Licenca
 

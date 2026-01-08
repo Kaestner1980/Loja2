@@ -1,0 +1,147 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// Usuario para autenticacao
+model Usuario {
+  id        Int      @id @default(autoincrement())
+  nome      String
+  email     String   @unique
+  senha     String
+  role      String   @default("OPERADOR") // ADMIN, OPERADOR
+  ativo     Boolean  @default(true)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  vendas        Venda[]
+  movimentacoes MovimentacaoEstoque[]
+  caixas        Caixa[]
+}
+
+// Produto
+model Produto {
+  id            Int      @id @default(autoincrement())
+  codigo        String   @unique
+  codigoBarras  String?  @unique
+  nome          String
+  categoria     String
+  subcategoria  String?
+  marca         String?
+  precoCusto    Float    @default(0)
+  precoVenda    Float
+  foto          String?
+  estoqueMinimo Int      @default(5)
+  estoqueAtual  Int      @default(0)
+  localizacao   String?
+  ativo         Boolean  @default(true)
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  itensVenda    ItemVenda[]
+  movimentacoes MovimentacaoEstoque[]
+}
+
+// Cliente
+model Cliente {
+  id               Int       @id @default(autoincrement())
+  nome             String
+  cpf              String?   @unique
+  telefone         String?
+  email            String?
+  dataNascimento   DateTime?
+  pontosFidelidade Int       @default(0)
+  observacoes      String?
+  ativo            Boolean   @default(true)
+  createdAt        DateTime  @default(now())
+  updatedAt        DateTime  @updatedAt
+
+  vendas Venda[]
+}
+
+// Venda
+model Venda {
+  id             Int      @id @default(autoincrement())
+  numero         String   @unique
+  data           DateTime @default(now())
+  clienteId      Int?
+  usuarioId      Int
+  subtotal       Float
+  desconto       Float    @default(0)
+  total          Float
+  formaPagamento String
+  cpfCliente     String?
+  status         String   @default("FINALIZADA")
+  observacao     String?
+  createdAt      DateTime @default(now())
+
+  cliente    Cliente?             @relation(fields: [clienteId], references: [id])
+  usuario    Usuario              @relation(fields: [usuarioId], references: [id])
+  itens      ItemVenda[]
+  pagamentos TransacaoPagamento[]
+}
+
+// Item da Venda
+model ItemVenda {
+  id            Int   @id @default(autoincrement())
+  vendaId       Int
+  produtoId     Int
+  quantidade    Int
+  precoUnitario Float
+  subtotal      Float
+
+  venda   Venda   @relation(fields: [vendaId], references: [id], onDelete: Cascade)
+  produto Produto @relation(fields: [produtoId], references: [id])
+}
+
+// Transacao de Pagamento
+model TransacaoPagamento {
+  id                String    @id @default(uuid())
+  vendaId           Int?
+  gateway           String
+  tipo              String
+  valor             Float
+  parcelas          Int       @default(1)
+  status            String    @default("PENDENTE")
+  codigoAutorizacao String?
+  nsu               String?
+  bandeira          String?
+  mensagem          String?
+  createdAt         DateTime  @default(now())
+  processedAt       DateTime?
+
+  venda Venda? @relation(fields: [vendaId], references: [id])
+}
+
+// Movimentacao de Estoque
+model MovimentacaoEstoque {
+  id            Int      @id @default(autoincrement())
+  produtoId     Int
+  tipo          String
+  quantidade    Int
+  motivo        String?
+  observacao    String?
+  funcionarioId Int
+  createdAt     DateTime @default(now())
+
+  produto     Produto @relation(fields: [produtoId], references: [id])
+  funcionario Usuario @relation(fields: [funcionarioId], references: [id])
+}
+
+// Caixa
+model Caixa {
+  id             Int       @id @default(autoincrement())
+  funcionarioId  Int
+  dataAbertura   DateTime  @default(now())
+  dataFechamento DateTime?
+  valorInicial   Float
+  valorFinal     Float?
+  status         String    @default("ABERTO")
+  observacao     String?
+
+  funcionario Usuario @relation(fields: [funcionarioId], references: [id])
+}
