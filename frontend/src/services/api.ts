@@ -1,5 +1,21 @@
 const API_URL = '/api'
 
+// Detectar se estamos no Electron
+const isElectron = typeof window !== 'undefined' && window.electronAPI !== undefined
+
+// Obter usuario atual do localStorage
+function getCurrentUserId(): number {
+  const usuario = localStorage.getItem('usuario')
+  if (usuario) {
+    try {
+      return JSON.parse(usuario).id
+    } catch {
+      return 1
+    }
+  }
+  return 1
+}
+
 // Types
 export interface Produto {
   id: number
@@ -151,14 +167,26 @@ async function apiCall<T>(
 }
 
 // Auth
-export const login = (login: string, senha: string): Promise<LoginResponse> =>
-  apiCall('/auth/login', {
+export const login = async (loginEmail: string, senha: string): Promise<LoginResponse> => {
+  if (isElectron) {
+    const usuario = await window.electronAPI.login(loginEmail, senha)
+    // Gerar token local para manter compatibilidade
+    const token = btoa(JSON.stringify({ id: usuario.id, email: usuario.email }))
+    return { token, usuario }
+  }
+  return apiCall('/auth/login', {
     method: 'POST',
-    body: JSON.stringify({ login, senha }),
+    body: JSON.stringify({ login: loginEmail, senha }),
   })
+}
 
-export const getMe = (): Promise<Usuario> =>
-  apiCall('/auth/me')
+export const getMe = async (): Promise<Usuario> => {
+  if (isElectron) {
+    const userId = getCurrentUserId()
+    return window.electronAPI.getUsuario(userId)
+  }
+  return apiCall('/auth/me')
+}
 
 // Produtos
 export const getProdutos = async (params?: {
@@ -166,6 +194,9 @@ export const getProdutos = async (params?: {
   categoria?: string
   ativo?: boolean
 }): Promise<Produto[]> => {
+  if (isElectron) {
+    return window.electronAPI.getProdutos(params)
+  }
   const searchParams = new URLSearchParams()
   if (params?.busca) searchParams.append('busca', params.busca)
   if (params?.categoria) searchParams.append('categoria', params.categoria)
@@ -176,30 +207,56 @@ export const getProdutos = async (params?: {
   return response.data
 }
 
-export const getProduto = (id: number): Promise<Produto> =>
-  apiCall(`/produtos/${id}`)
+export const getProduto = async (id: number): Promise<Produto> => {
+  if (isElectron) {
+    return window.electronAPI.getProduto(id)
+  }
+  return apiCall(`/produtos/${id}`)
+}
 
-export const getProdutoByBarcode = (codigo: string): Promise<Produto> =>
-  apiCall(`/produtos/codigo/${codigo}`)
+export const getProdutoByBarcode = async (codigo: string): Promise<Produto> => {
+  if (isElectron) {
+    const produto = await window.electronAPI.getProdutoByCodigo(codigo)
+    if (!produto) throw new Error('Produto nao encontrado')
+    return produto
+  }
+  return apiCall(`/produtos/codigo/${codigo}`)
+}
 
-export const createProduto = (data: Partial<Produto>): Promise<Produto> =>
-  apiCall('/produtos', {
+export const createProduto = async (data: Partial<Produto>): Promise<Produto> => {
+  if (isElectron) {
+    return window.electronAPI.createProduto(data)
+  }
+  return apiCall('/produtos', {
     method: 'POST',
     body: JSON.stringify(data),
   })
+}
 
-export const updateProduto = (id: number, data: Partial<Produto>): Promise<Produto> =>
-  apiCall(`/produtos/${id}`, {
+export const updateProduto = async (id: number, data: Partial<Produto>): Promise<Produto> => {
+  if (isElectron) {
+    return window.electronAPI.updateProduto(id, data)
+  }
+  return apiCall(`/produtos/${id}`, {
     method: 'PUT',
     body: JSON.stringify(data),
   })
+}
 
-export const deleteProduto = (id: number): Promise<void> =>
-  apiCall(`/produtos/${id}`, { method: 'DELETE' })
+export const deleteProduto = async (id: number): Promise<void> => {
+  if (isElectron) {
+    return window.electronAPI.deleteProduto(id)
+  }
+  return apiCall(`/produtos/${id}`, { method: 'DELETE' })
+}
 
 // Categorias - returns array of strings from backend
-export const getCategorias = (): Promise<string[]> =>
-  apiCall('/produtos/categorias')
+export const getCategorias = async (): Promise<string[]> => {
+  if (isElectron) {
+    return window.electronAPI.getCategorias()
+  }
+  return apiCall('/produtos/categorias')
+}
 
 // Vendas
 export const getVendas = async (params?: {
@@ -207,6 +264,9 @@ export const getVendas = async (params?: {
   dataFim?: string
   status?: string
 }): Promise<Venda[]> => {
+  if (isElectron) {
+    return window.electronAPI.getVendas(params)
+  }
   const searchParams = new URLSearchParams()
   if (params?.dataInicio) searchParams.append('dataInicio', params.dataInicio)
   if (params?.dataFim) searchParams.append('dataFim', params.dataFim)
@@ -217,22 +277,36 @@ export const getVendas = async (params?: {
   return response.data
 }
 
-export const getVenda = (id: number): Promise<Venda> =>
-  apiCall(`/vendas/${id}`)
+export const getVenda = async (id: number): Promise<Venda> => {
+  if (isElectron) {
+    return window.electronAPI.getVenda(id)
+  }
+  return apiCall(`/vendas/${id}`)
+}
 
-export const createVenda = (data: {
+export const createVenda = async (data: {
   itens: { produtoId: number; quantidade: number; precoUnitario: number }[]
   desconto?: number
   formaPagamento: 'DINHEIRO' | 'CARTAO_DEBITO' | 'CARTAO_CREDITO' | 'PIX'
   cpfCliente?: string
-}): Promise<Venda> =>
-  apiCall('/vendas', {
+}): Promise<Venda> => {
+  if (isElectron) {
+    const userId = getCurrentUserId()
+    return window.electronAPI.createVenda(data, userId)
+  }
+  return apiCall('/vendas', {
     method: 'POST',
     body: JSON.stringify(data),
   })
+}
 
-export const cancelVenda = (id: number): Promise<{ message: string }> =>
-  apiCall(`/vendas/${id}`, { method: 'DELETE' })
+export const cancelVenda = async (id: number): Promise<{ message: string }> => {
+  if (isElectron) {
+    const userId = getCurrentUserId()
+    return window.electronAPI.cancelVenda(id, userId)
+  }
+  return apiCall(`/vendas/${id}`, { method: 'DELETE' })
+}
 
 // Estoque
 export const getMovimentacoes = async (params?: {
@@ -241,6 +315,9 @@ export const getMovimentacoes = async (params?: {
   dataInicio?: string
   dataFim?: string
 }): Promise<MovimentacaoEstoque[]> => {
+  if (isElectron) {
+    return window.electronAPI.getMovimentacoes(params)
+  }
   const searchParams = new URLSearchParams()
   if (params?.produtoId) searchParams.append('produtoId', params.produtoId.toString())
   if (params?.tipo) searchParams.append('tipo', params.tipo)
@@ -252,12 +329,16 @@ export const getMovimentacoes = async (params?: {
   return response.data
 }
 
-export const createMovimentacao = (data: {
+export const createMovimentacao = async (data: {
   produtoId: number
   tipo: 'ENTRADA' | 'SAIDA' | 'AJUSTE'
   quantidade: number
   motivo?: string
 }): Promise<MovimentacaoEstoque> => {
+  if (isElectron) {
+    const userId = getCurrentUserId()
+    return window.electronAPI.createMovimentacao(data, userId)
+  }
   const endpoint = data.tipo === 'ENTRADA'
     ? '/estoque/entrada'
     : data.tipo === 'SAIDA'
@@ -275,8 +356,12 @@ export const createMovimentacao = (data: {
 }
 
 // Dashboard
-export const getDashboard = (): Promise<DashboardData> =>
-  apiCall('/dashboard')
+export const getDashboard = async (): Promise<DashboardData> => {
+  if (isElectron) {
+    return window.electronAPI.getDashboard()
+  }
+  return apiCall('/dashboard')
+}
 
 // Relatorios
 export const getRelatorioVendas = (params: {

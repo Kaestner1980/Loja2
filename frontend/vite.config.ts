@@ -46,6 +46,20 @@ export default defineConfig(async () => {
               build: {
                 outDir: 'dist-electron',
                 rollupOptions: {
+                  external: ['electron', 'better-sqlite3', 'bcryptjs']
+                }
+              }
+            }
+          },
+          {
+            entry: 'electron/preload.ts',
+            onstart(options) {
+              options.reload()
+            },
+            vite: {
+              build: {
+                outDir: 'dist-electron',
+                rollupOptions: {
                   external: ['electron']
                 }
               }
