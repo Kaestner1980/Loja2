@@ -1,0 +1,161 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = "file:./dev.db"
+}
+
+// Produto (Product)
+model Produto {
+  id             Int      @id @default(autoincrement())
+  codigo         String   @unique
+  codigoBarras   String?  @unique
+  nome           String
+  categoria      String
+  subcategoria   String?
+  marca          String?
+  precoCusto     Float
+  precoVenda     Float
+  foto           String?
+  estoqueMinimo  Int      @default(5)
+  estoqueAtual   Int      @default(0)
+  localizacao    String?
+  ativo          Boolean  @default(true)
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  itensVenda     ItemVenda[]
+  movimentacoes  MovimentacaoEstoque[]
+}
+
+// Cliente (Customer)
+model Cliente {
+  id               Int       @id @default(autoincrement())
+  nome             String
+  cpf              String?   @unique
+  telefone         String?
+  email            String?
+  dataNascimento   DateTime?
+  pontosFidelidade Int       @default(0)
+  observacoes      String?
+  ativo            Boolean   @default(true)
+  createdAt        DateTime  @default(now())
+  updatedAt        DateTime  @updatedAt
+
+  vendas           Venda[]
+}
+
+// Funcionario (Employee)
+// nivel: VENDEDOR, GERENTE, ADMIN
+model Funcionario {
+  id        Int      @id @default(autoincrement())
+  nome      String
+  cargo     String
+  comissao  Float    @default(0)
+  login     String   @unique
+  senha     String
+  nivel     String   @default("VENDEDOR")
+  ativo     Boolean  @default(true)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  vendas        Venda[]
+  movimentacoes MovimentacaoEstoque[]
+  caixas        Caixa[]
+}
+
+// Venda (Sale)
+// formaPagamento: DINHEIRO, CARTAO_CREDITO, CARTAO_DEBITO, PIX, VALE, MISTO
+// status: PENDENTE, CONCLUIDA, CANCELADA
+model Venda {
+  id             Int           @id @default(autoincrement())
+  numero         Int           @unique
+  data           DateTime      @default(now())
+  clienteId      Int?
+  funcionarioId  Int
+  subtotal       Float
+  desconto       Float         @default(0)
+  total          Float
+  formaPagamento String
+  status         String        @default("CONCLUIDA")
+  cpfNota        String?
+  observacao     String?
+  createdAt      DateTime      @default(now())
+
+  cliente        Cliente?              @relation(fields: [clienteId], references: [id])
+  funcionario    Funcionario           @relation(fields: [funcionarioId], references: [id])
+  itens          ItemVenda[]
+  pagamentos     TransacaoPagamento[]
+}
+
+// TransacaoPagamento (Payment Transaction)
+// gateway: STONE, MERCADOPAGO, MANUAL
+// tipo: CREDITO, DEBITO, PIX
+// status: PENDENTE, PROCESSANDO, APROVADO, RECUSADO, CANCELADO
+model TransacaoPagamento {
+  id                String    @id @default(uuid())
+  vendaId           Int?
+  gateway           String    // STONE | MERCADOPAGO | MANUAL
+  tipo              String    // CREDITO | DEBITO | PIX
+  valor             Float
+  parcelas          Int       @default(1)
+  status            String    @default("PENDENTE")
+  codigoAutorizacao String?
+  nsu               String?   // Numero Sequencial Unico
+  bandeira          String?   // VISA, MASTERCARD, ELO, etc
+  mensagem          String?
+  createdAt         DateTime  @default(now())
+  processedAt       DateTime?
+
+  venda             Venda?    @relation(fields: [vendaId], references: [id])
+}
+
+// ItemVenda (SaleItem)
+model ItemVenda {
+  id            Int     @id @default(autoincrement())
+  vendaId       Int
+  produtoId     Int
+  quantidade    Int
+  precoUnitario Float
+  desconto      Float   @default(0)
+  total         Float
+
+  venda         Venda   @relation(fields: [vendaId], references: [id], onDelete: Cascade)
+  produto       Produto @relation(fields: [produtoId], references: [id])
+}
+
+// MovimentacaoEstoque (StockMovement)
+// tipo: ENTRADA, SAIDA, AJUSTE
+model MovimentacaoEstoque {
+  id            Int              @id @default(autoincrement())
+  produtoId     Int
+  tipo          String
+  quantidade    Int
+  motivo        String
+  observacao    String?
+  funcionarioId Int
+  createdAt     DateTime         @default(now())
+
+  produto       Produto          @relation(fields: [produtoId], references: [id])
+  funcionario   Funcionario      @relation(fields: [funcionarioId], references: [id])
+}
+
+// Caixa (CashRegister)
+// status: ABERTO, FECHADO
+model Caixa {
+  id             Int          @id @default(autoincrement())
+  funcionarioId  Int
+  dataAbertura   DateTime     @default(now())
+  dataFechamento DateTime?
+  valorInicial   Float
+  valorFinal     Float?
+  status         String       @default("ABERTO")
+  observacao     String?
+
+  funcionario    Funcionario  @relation(fields: [funcionarioId], references: [id])
+}

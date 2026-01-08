@@ -1,0 +1,7 @@
+export { Login } from './Login'
+export { Dashboard } from './Dashboard'
+export { PDV } from './PDV'
+export { Produtos } from './Produtos'
+export { Estoque } from './Estoque'
+export { Relatorios } from './Relatorios'
+export { Configuracoes } from './Configuracoes'
