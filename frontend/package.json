@@ -6,16 +6,15 @@
   "scripts": {
     "dev": "vite",
     "dev:web": "vite",
-    "dev:electron": "ELECTRON=true concurrently \"vite\" \"wait-on http://localhost:5173 && electron .\"",
+    "dev:electron": "npm run setup:electron && ELECTRON=true concurrently \"vite\" \"wait-on http://localhost:5173 && electron .\"",
     "build": "tsc && vite build",
-    "build:electron": "ELECTRON=true tsc && ELECTRON=true vite build && electron-builder",
-    "postinstall": "electron-builder install-app-deps",
+    "build:electron": "npm run setup:electron && ELECTRON=true tsc && ELECTRON=true vite build && electron-builder",
+    "setup:electron": "npm install better-sqlite3@^9.2.2 --save-optional && electron-builder install-app-deps",
     "preview": "vite preview",
     "lint": "eslint src --ext ts,tsx --report-unused-disable-directives --max-warnings 0"
   },
   "dependencies": {
     "bcryptjs": "^2.4.3",
-    "better-sqlite3": "^9.2.2",
     "clsx": "^2.0.0",
     "date-fns": "^2.30.0",
     "lucide-react": "^0.294.0",
