@@ -1,9 +1,9 @@
-# Ignorar API backend - não fazer deploy de serverless functions
-api/
-backend/
-prisma/
-*.ts
-*.js
+# Ignorar apenas a pasta api/ na raiz (serverless functions)
+/api/
 
-# Manter apenas o frontend
-!frontend/
+# Ignorar arquivos backend na raiz
+/backend/
+/prisma/
+package.json
+package-lock.json
+tsconfig.json
