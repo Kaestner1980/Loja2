@@ -6,7 +6,6 @@ import {
   BarChart3,
   RefreshCw,
   Search,
-  Calendar,
   Zap,
   ArrowUp,
   ArrowDown,
@@ -21,7 +20,6 @@ import { Input } from '../components/Input'
 import { Select } from '../components/Select'
 import { Badge } from '../components/Badge'
 import { GraficoTendencia } from '../components/GraficoTendencia'
-import { formatCurrency } from '../services/api'
 
 // Tipos
 interface ProdutoPrevisao {
