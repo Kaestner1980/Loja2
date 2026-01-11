@@ -8,6 +8,13 @@ import {
   Settings,
   LogOut,
   Gem,
+  TrendingUp,
+  BarChart3,
+  RefreshCcw,
+  ClipboardList,
+  Tag,
+  Brain,
+  Calendar,
 } from 'lucide-react'
 import { useAuthStore } from '../stores/authStore'
 import clsx from 'clsx'
@@ -85,9 +92,44 @@ export function Sidebar() {
           label="Estoque"
         />
         <NavItem
+          to="/devolucoes"
+          icon={<RefreshCcw className="w-5 h-5" />}
+          label="Devolucoes"
+        />
+        <NavItem
+          to="/comandas"
+          icon={<ClipboardList className="w-5 h-5" />}
+          label="Comandas"
+        />
+        <NavItem
+          to="/atributos"
+          icon={<Tag className="w-5 h-5" />}
+          label="Atributos"
+        />
+        <NavItem
           to="/relatorios"
           icon={<FileBarChart className="w-5 h-5" />}
           label="Relatorios"
+        />
+        <NavItem
+          to="/sugestao-pedido"
+          icon={<TrendingUp className="w-5 h-5" />}
+          label="Sugestao Pedido"
+        />
+        <NavItem
+          to="/curva-abc"
+          icon={<BarChart3 className="w-5 h-5" />}
+          label="Curva ABC"
+        />
+        <NavItem
+          to="/previsao-demanda"
+          icon={<Brain className="w-5 h-5" />}
+          label="Previsao IA"
+        />
+        <NavItem
+          to="/sazonalidade"
+          icon={<Calendar className="w-5 h-5" />}
+          label="Sazonalidade"
         />
 
         <div className="pt-4 mt-4 border-t border-gray-200 dark:border-gray-800">

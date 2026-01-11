@@ -7,6 +7,21 @@ export interface CartItem {
   precoUnitario: number
 }
 
+export interface SuspendedSale {
+  id: string
+  timestamp: Date
+  items: CartItem[]
+  desconto: number
+  descontoTipo: 'percentual' | 'valor'
+  formaPagamento: 'DINHEIRO' | 'CARTAO_DEBITO' | 'CARTAO_CREDITO' | 'PIX' | null
+  cpfCliente: string
+  valorRecebido: number
+  subtotal: number
+  descontoCalculado: number
+  total: number
+  clienteName?: string
+}
+
 interface CartState {
   items: CartItem[]
   desconto: number
@@ -14,6 +29,7 @@ interface CartState {
   formaPagamento: 'DINHEIRO' | 'CARTAO_DEBITO' | 'CARTAO_CREDITO' | 'PIX' | null
   cpfCliente: string
   valorRecebido: number
+  suspendedSales: SuspendedSale[]
 
   // Computed
   subtotal: number
@@ -31,6 +47,11 @@ interface CartState {
   setValorRecebido: (valor: number) => void
   clear: () => void
   getItemsForSale: () => { produtoId: number; quantidade: number; precoUnitario: number }[]
+
+  // Suspended sales actions
+  suspendSale: (clienteName?: string) => void
+  resumeSale: (id: string) => void
+  deleteSuspendedSale: (id: string) => void
 }
 
 const calculateTotals = (items: CartItem[], desconto: number, descontoTipo: 'percentual' | 'valor') => {
@@ -55,6 +76,7 @@ export const useCartStore = create<CartState>((set, get) => ({
   formaPagamento: null,
   cpfCliente: '',
   valorRecebido: 0,
+  suspendedSales: [],
 
   // Initial computed values
   subtotal: 0,
@@ -66,18 +88,46 @@ export const useCartStore = create<CartState>((set, get) => ({
     const state = get()
     const existingIndex = state.items.findIndex((item) => item.produto.id === produto.id)
 
+    // Calculate price based on quantity (wholesale vs retail)
+    let precoUnitario = produto.precoVenda
+
+    if (produto.precoVendaAtacado && produto.quantidadeAtacado) {
+      // Check if existing quantity + new quantity >= minimum for wholesale
+      const existingQty = existingIndex >= 0 ? state.items[existingIndex].quantidade : 0
+      const totalQty = existingQty + quantidade
+
+      if (totalQty >= produto.quantidadeAtacado) {
+        precoUnitario = produto.precoVendaAtacado
+      } else if (produto.precoVendaVarejo) {
+        precoUnitario = produto.precoVendaVarejo
+      }
+    } else if (produto.precoVendaVarejo) {
+      precoUnitario = produto.precoVendaVarejo
+    }
+
     let newItems: CartItem[]
 
     if (existingIndex >= 0) {
+      // Update existing item - recalculate price based on new quantity
+      const newQuantity = state.items[existingIndex].quantidade + quantidade
+
+      // Recalculate price for total quantity
+      let newPrice = produto.precoVenda
+      if (produto.precoVendaAtacado && produto.quantidadeAtacado && newQuantity >= produto.quantidadeAtacado) {
+        newPrice = produto.precoVendaAtacado
+      } else if (produto.precoVendaVarejo) {
+        newPrice = produto.precoVendaVarejo
+      }
+
       newItems = state.items.map((item, index) =>
         index === existingIndex
-          ? { ...item, quantidade: item.quantidade + quantidade }
+          ? { ...item, quantidade: newQuantity, precoUnitario: newPrice }
           : item
       )
     } else {
       newItems = [
         ...state.items,
-        { produto, quantidade, precoUnitario: produto.precoVenda },
+        { produto, quantidade, precoUnitario },
       ]
     }
 
@@ -109,9 +159,22 @@ export const useCartStore = create<CartState>((set, get) => ({
     }
 
     const state = get()
-    const newItems = state.items.map((item) =>
-      item.produto.id === produtoId ? { ...item, quantidade } : item
-    )
+    const newItems = state.items.map((item) => {
+      if (item.produto.id === produtoId) {
+        // Recalculate price based on new quantity
+        const produto = item.produto
+        let newPrice = produto.precoVenda
+
+        if (produto.precoVendaAtacado && produto.quantidadeAtacado && quantidade >= produto.quantidadeAtacado) {
+          newPrice = produto.precoVendaAtacado
+        } else if (produto.precoVendaVarejo) {
+          newPrice = produto.precoVendaVarejo
+        }
+
+        return { ...item, quantidade, precoUnitario: newPrice }
+      }
+      return item
+    })
     const totals = calculateTotals(newItems, state.desconto, state.descontoTipo)
 
     set({
@@ -165,5 +228,78 @@ export const useCartStore = create<CartState>((set, get) => ({
       quantidade: item.quantidade,
       precoUnitario: item.precoUnitario,
     }))
+  },
+
+  // Suspended sales functions
+  suspendSale: (clienteName?: string) => {
+    const state = get()
+
+    // Don't suspend if cart is empty
+    if (state.items.length === 0) return
+
+    const suspendedSale: SuspendedSale = {
+      id: `sale-${Date.now()}`,
+      timestamp: new Date(),
+      items: state.items,
+      desconto: state.desconto,
+      descontoTipo: state.descontoTipo,
+      formaPagamento: state.formaPagamento,
+      cpfCliente: state.cpfCliente,
+      valorRecebido: state.valorRecebido,
+      subtotal: state.subtotal,
+      descontoCalculado: state.descontoCalculado,
+      total: state.total,
+      clienteName,
+    }
+
+    set({
+      suspendedSales: [...state.suspendedSales, suspendedSale],
+      // Clear current cart
+      items: [],
+      desconto: 0,
+      descontoTipo: 'percentual',
+      formaPagamento: null,
+      cpfCliente: '',
+      valorRecebido: 0,
+      subtotal: 0,
+      descontoCalculado: 0,
+      total: 0,
+      troco: 0,
+    })
+  },
+
+  resumeSale: (id: string) => {
+    const state = get()
+    const saleToResume = state.suspendedSales.find((sale) => sale.id === id)
+
+    if (!saleToResume) return
+
+    // Save current cart if not empty
+    if (state.items.length > 0) {
+      get().suspendSale()
+    }
+
+    // Restore the suspended sale
+    set({
+      items: saleToResume.items,
+      desconto: saleToResume.desconto,
+      descontoTipo: saleToResume.descontoTipo,
+      formaPagamento: saleToResume.formaPagamento,
+      cpfCliente: saleToResume.cpfCliente,
+      valorRecebido: saleToResume.valorRecebido,
+      subtotal: saleToResume.subtotal,
+      descontoCalculado: saleToResume.descontoCalculado,
+      total: saleToResume.total,
+      troco: Math.max(0, saleToResume.valorRecebido - saleToResume.total),
+      // Remove from suspended list
+      suspendedSales: state.suspendedSales.filter((sale) => sale.id !== id),
+    })
+  },
+
+  deleteSuspendedSale: (id: string) => {
+    const state = get()
+    set({
+      suspendedSales: state.suspendedSales.filter((sale) => sale.id !== id),
+    })
   },
 }))

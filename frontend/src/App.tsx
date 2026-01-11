@@ -10,6 +10,13 @@ import {
   Relatorios,
   Configuracoes,
 } from './pages'
+import { SugestaoPedido } from './pages/SugestaoPedido'
+import { CurvaABC } from './pages/CurvaABC'
+import { Devolucoes } from './pages/Devolucoes'
+import { Comandas } from './pages/Comandas'
+import { Atributos } from './pages/Atributos'
+import { PrevisaoDemanda } from './pages/PrevisaoDemanda'
+import { Sazonalidade } from './pages/Sazonalidade'
 import { useAuthStore } from './stores/authStore'
 import { useThemeStore } from './stores/themeStore'
 
@@ -57,6 +64,13 @@ function App() {
           <Route path="produtos" element={<Produtos />} />
           <Route path="estoque" element={<Estoque />} />
           <Route path="relatorios" element={<Relatorios />} />
+          <Route path="sugestao-pedido" element={<SugestaoPedido />} />
+          <Route path="curva-abc" element={<CurvaABC />} />
+          <Route path="devolucoes" element={<Devolucoes />} />
+          <Route path="comandas" element={<Comandas />} />
+          <Route path="atributos" element={<Atributos />} />
+          <Route path="previsao-demanda" element={<PrevisaoDemanda />} />
+          <Route path="sazonalidade" element={<Sazonalidade />} />
           <Route path="configuracoes" element={<Configuracoes />} />
         </Route>
 

@@ -29,8 +29,25 @@ model Produto {
   createdAt      DateTime @default(now())
   updatedAt      DateTime @updatedAt
 
-  itensVenda     ItemVenda[]
-  movimentacoes  MovimentacaoEstoque[]
+  // Tabela de preços
+  precoVendaVarejo   Float?    // Preço varejo (padrão usa precoVenda)
+  precoVendaAtacado  Float?    // Preço atacado
+  quantidadeAtacado  Int?      // Qtd mínima para atacado (ex: 10)
+
+  // Controle de validade
+  dataValidade       DateTime? // Null = produto sem validade (bijuteria)
+  alertarValidade    Boolean   @default(false) // Se true, mostra alertas
+
+  // Busca inteligente
+  apelidos           String?   // JSON array: ["batom ruby", "ruby rose 231"]
+  tags               String?   // JSON array: ["maquiagem", "vermelho", "lipstick"]
+
+  itensVenda         ItemVenda[]
+  movimentacoes      MovimentacaoEstoque[]
+  itensDevolucao     ItemDevolucao[]
+  itensComanda       ItemComanda[]
+  variacoes          ProdutoVariacao[]
+  previsoes          PrevisaoDemanda[]
 }
 
 // Cliente (Customer)
@@ -48,6 +65,8 @@ model Cliente {
   updatedAt        DateTime  @updatedAt
 
   vendas           Venda[]
+  devolucoes       Devolucao[]
+  comandas         Comanda[]
 }
 
 // Funcionario (Employee)
@@ -64,9 +83,12 @@ model Funcionario {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
-  vendas        Venda[]
-  movimentacoes MovimentacaoEstoque[]
-  caixas        Caixa[]
+  vendas           Venda[]
+  movimentacoes    MovimentacaoEstoque[]
+  caixas           Caixa[]
+  devolucoes       Devolucao[]
+  comandas         Comanda[]
+  importacoes      ImportacaoProduto[]
 }
 
 // Venda (Sale)
@@ -91,6 +113,8 @@ model Venda {
   funcionario    Funcionario           @relation(fields: [funcionarioId], references: [id])
   itens          ItemVenda[]
   pagamentos     TransacaoPagamento[]
+  devolucoes     Devolucao[]
+  comandas       Comanda[]
 }
 
 // TransacaoPagamento (Payment Transaction)
@@ -158,4 +182,178 @@ model Caixa {
   observacao     String?
 
   funcionario    Funcionario  @relation(fields: [funcionarioId], references: [id])
+}
+
+// Devolucao (Return)
+// motivo: DEFEITO, ARREPENDIMENTO, TROCA, DANIFICADO
+// status: PENDENTE, APROVADA, PROCESSADA
+model Devolucao {
+  id                Int         @id @default(autoincrement())
+  numero            Int         @unique
+  vendaId           Int
+  clienteId         Int?
+  funcionarioId     Int
+  data              DateTime    @default(now())
+  motivo            String      // DEFEITO, ARREPENDIMENTO, TROCA, DANIFICADO
+  status            String      @default("PENDENTE") // PENDENTE, APROVADA, PROCESSADA
+  valorTotal        Float
+  observacao        String?
+  dataProcessamento DateTime?
+
+  venda             Venda       @relation(fields: [vendaId], references: [id])
+  cliente           Cliente?    @relation(fields: [clienteId], references: [id])
+  funcionario       Funcionario @relation(fields: [funcionarioId], references: [id])
+  itens             ItemDevolucao[]
+
+  @@index([vendaId])
+  @@index([status])
+  @@index([data])
+}
+
+// ItemDevolucao (ReturnItem)
+model ItemDevolucao {
+  id            Int         @id @default(autoincrement())
+  devolucaoId   Int
+  produtoId     Int
+  quantidade    Int
+  precoUnitario Float       // Preço que foi vendido
+  motivoItem    String?     // Motivo específico do item
+
+  devolucao     Devolucao   @relation(fields: [devolucaoId], references: [id])
+  produto       Produto     @relation(fields: [produtoId], references: [id])
+
+  @@index([devolucaoId])
+}
+
+// Comanda (Tab/Order) - Atendimento simultâneo
+// status: ABERTA, FECHADA, CANCELADA
+model Comanda {
+  id              Int         @id @default(autoincrement())
+  numero          Int         @unique
+  identificador   String      // "Mesa 5", "Cliente João", etc
+  vendaId         Int?        // Venda associada (quando fechada)
+  clienteId       Int?
+  funcionarioId   Int
+  dataAbertura    DateTime    @default(now())
+  dataFechamento  DateTime?
+  status          String      @default("ABERTA") // ABERTA, FECHADA, CANCELADA
+  subtotal        Float       @default(0)
+  desconto        Float       @default(0)
+  total           Float       @default(0)
+  observacao      String?
+
+  venda           Venda?      @relation(fields: [vendaId], references: [id])
+  cliente         Cliente?    @relation(fields: [clienteId], references: [id])
+  funcionario     Funcionario @relation(fields: [funcionarioId], references: [id])
+  itens           ItemComanda[]
+
+  @@index([status])
+  @@index([dataAbertura])
+}
+
+// ItemComanda (Tab Item)
+model ItemComanda {
+  id            Int       @id @default(autoincrement())
+  comandaId     Int
+  produtoId     Int
+  quantidade    Int
+  precoUnitario Float
+  desconto      Float     @default(0)
+  total         Float
+
+  comanda       Comanda   @relation(fields: [comandaId], references: [id])
+  produto       Produto   @relation(fields: [produtoId], references: [id])
+
+  @@index([comandaId])
+}
+
+// ImportacaoProduto (Product Import History)
+// status: PROCESSANDO, CONCLUIDO, ERRO
+model ImportacaoProduto {
+  id              Int         @id @default(autoincrement())
+  nomeArquivo     String
+  totalLinhas     Int
+  sucessos        Int
+  erros           Int
+  status          String      // PROCESSANDO, CONCLUIDO, ERRO
+  errosDetalhes   String?     // JSON com detalhes dos erros
+  funcionarioId   Int
+  data            DateTime    @default(now())
+
+  funcionario     Funcionario @relation(fields: [funcionarioId], references: [id])
+
+  @@index([data])
+  @@index([funcionarioId])
+}
+
+// TipoAtributo (Attribute Type) - ex: "Cor", "Tamanho", "Material"
+model TipoAtributo {
+  id        Int             @id @default(autoincrement())
+  nome      String          @unique
+  ativo     Boolean         @default(true)
+  opcoes    OpcaoAtributo[]
+}
+
+// OpcaoAtributo (Attribute Option) - ex: "Azul", "P", "Ouro"
+model OpcaoAtributo {
+  id             Int                @id @default(autoincrement())
+  tipoAtributoId Int
+  valor          String
+  tipoAtributo   TipoAtributo       @relation(fields: [tipoAtributoId], references: [id])
+  variacoes      VariacaoAtributo[]
+
+  @@unique([tipoAtributoId, valor])
+}
+
+// ProdutoVariacao (Product Variation) - combinacao de atributos
+model ProdutoVariacao {
+  id           Int                @id @default(autoincrement())
+  produtoId    Int
+  sku          String             @unique
+  codigoBarras String?            @unique
+  precoVenda   Float?
+  estoqueAtual Int                @default(0)
+  ativo        Boolean            @default(true)
+  produto      Produto            @relation(fields: [produtoId], references: [id])
+  atributos    VariacaoAtributo[]
+
+  @@index([produtoId])
+}
+
+// VariacaoAtributo (Variation Attribute) - liga variacao aos atributos selecionados
+model VariacaoAtributo {
+  id              Int             @id @default(autoincrement())
+  variacaoId      Int
+  opcaoAtributoId Int
+  variacao        ProdutoVariacao @relation(fields: [variacaoId], references: [id], onDelete: Cascade)
+  opcaoAtributo   OpcaoAtributo   @relation(fields: [opcaoAtributoId], references: [id])
+
+  @@unique([variacaoId, opcaoAtributoId])
+}
+
+// PrevisaoDemanda (Demand Forecast) - Previsao de demanda baseada em IA
+// modelo: EMA, TENDENCIA, SAZONALIDADE, COMBINADO
+model PrevisaoDemanda {
+  id                 Int      @id @default(autoincrement())
+  produtoId          Int
+  dataPrevisao       DateTime
+  quantidadePrevista Float
+  confianca          Float    // 0.0 a 1.0 - nivel de confianca da previsao
+  modelo             String   // EMA, TENDENCIA, SAZONALIDADE, COMBINADO
+  createdAt          DateTime @default(now())
+
+  produto            Produto  @relation(fields: [produtoId], references: [id])
+
+  @@index([produtoId])
+  @@index([dataPrevisao])
+}
+
+// SazonalidadeCategoria (Category Seasonality) - Fatores sazonais por categoria e mes
+model SazonalidadeCategoria {
+  id        Int    @id @default(autoincrement())
+  categoria String
+  mes       Int    // 1-12
+  fator     Float  @default(1.0) // Multiplicador: <1 menos vendas, >1 mais vendas
+
+  @@unique([categoria, mes])
 }

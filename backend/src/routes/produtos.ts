@@ -15,6 +15,16 @@ const produtoCreateSchema = z.object({
   estoqueMinimo: z.number().int().min(0).default(5),
   estoqueAtual: z.number().int().min(0).default(0),
   localizacao: z.string().optional().nullable(),
+  // Tabela de preços
+  precoVendaVarejo: z.number().positive().optional().nullable(),
+  precoVendaAtacado: z.number().positive().optional().nullable(),
+  quantidadeAtacado: z.number().int().positive().optional().nullable(),
+  // Controle de validade
+  dataValidade: z.string().optional().nullable(), // ISO date string
+  alertarValidade: z.boolean().optional().default(false),
+  // Busca inteligente
+  apelidos: z.string().optional().nullable(), // JSON string
+  tags: z.string().optional().nullable(), // JSON string
 });
 
 const produtoUpdateSchema = produtoCreateSchema.partial();
@@ -44,6 +54,11 @@ export async function produtosRoutes(app: FastifyInstance) {
           { nome: { contains: query.busca } },
           { codigo: { contains: query.busca } },
           { codigoBarras: { contains: query.busca } },
+          { categoria: { contains: query.busca } },
+          { marca: { contains: query.busca } },
+          // Busca inteligente - apelidos e tags
+          { apelidos: { contains: query.busca } },
+          { tags: { contains: query.busca } },
         ];
       }
 
@@ -226,7 +241,10 @@ export async function produtosRoutes(app: FastifyInstance) {
       }
 
       const produto = await prisma.produto.create({
-        data: body,
+        data: {
+          ...body,
+          dataValidade: body.dataValidade ? new Date(body.dataValidade) : null,
+        },
       });
 
       const margemLucro =
@@ -285,7 +303,10 @@ export async function produtosRoutes(app: FastifyInstance) {
 
       const produto = await prisma.produto.update({
         where: { id: parseInt(id) },
-        data: body,
+        data: {
+          ...body,
+          dataValidade: body.dataValidade ? new Date(body.dataValidade) : undefined,
+        },
       });
 
       const margemLucro =
@@ -328,6 +349,51 @@ export async function produtosRoutes(app: FastifyInstance) {
       return reply.send({ message: 'Produto desativado com sucesso' });
     } catch (error) {
       console.error('Erro ao deletar produto:', error);
+      return reply.status(500).send({ error: 'Erro interno do servidor' });
+    }
+  });
+
+  // GET /produtos/vencer-em/:dias - Products expiring in X days
+  app.get('/produtos/vencer-em/:dias', { preHandler: [app.authenticate] }, async (request, reply) => {
+    try {
+      const { dias } = request.params as { dias: string };
+      const dataLimite = new Date();
+      dataLimite.setDate(dataLimite.getDate() + parseInt(dias));
+
+      const produtos = await prisma.produto.findMany({
+        where: {
+          alertarValidade: true,
+          dataValidade: {
+            lte: dataLimite,
+            gte: new Date(), // Não pegar já vencidos
+          },
+          ativo: true,
+        },
+        orderBy: { dataValidade: 'asc' },
+      });
+
+      return reply.send(produtos);
+    } catch (error) {
+      console.error('Erro ao buscar produtos vencendo:', error);
+      return reply.status(500).send({ error: 'Erro interno do servidor' });
+    }
+  });
+
+  // GET /produtos/vencidos - Expired products
+  app.get('/produtos/vencidos', { preHandler: [app.authenticate] }, async (request, reply) => {
+    try {
+      const produtos = await prisma.produto.findMany({
+        where: {
+          alertarValidade: true,
+          dataValidade: { lt: new Date() },
+          ativo: true,
+        },
+        orderBy: { dataValidade: 'asc' },
+      });
+
+      return reply.send(produtos);
+    } catch (error) {
+      console.error('Erro ao buscar produtos vencidos:', error);
       return reply.status(500).send({ error: 'Erro interno do servidor' });
     }
   });

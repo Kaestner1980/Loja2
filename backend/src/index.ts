@@ -15,6 +15,12 @@ import { clientesRoutes } from './routes/clientes.js';
 import { funcionariosRoutes } from './routes/funcionarios.js';
 import { pagamentosRoutes } from './routes/pagamentos.js';
 import { relatoriosRoutes } from './routes/relatorios.js';
+import { importarRoutes } from './routes/importar.js';
+import { devolucoesRoutes } from './routes/devolucoes.js';
+import { comandasRoutes } from './routes/comandas.js';
+import { atributosRoutes } from './routes/atributos.js';
+import { variacoesRoutes } from './routes/variacoes.js';
+import { previsaoRoutes } from './routes/previsao.js';
 
 const app = Fastify({
   logger: true,
@@ -69,6 +75,12 @@ app.register(clientesRoutes);
 app.register(funcionariosRoutes);
 app.register(pagamentosRoutes);
 app.register(relatoriosRoutes);
+app.register(importarRoutes);
+app.register(devolucoesRoutes);
+app.register(comandasRoutes);
+app.register(atributosRoutes);
+app.register(variacoesRoutes);
+app.register(previsaoRoutes);
 
 // Start server
 const start = async () => {

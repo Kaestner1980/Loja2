@@ -13,6 +13,9 @@ import {
   DollarSign,
   ShoppingBag,
   Barcode,
+  Pause,
+  Play,
+  Clock,
 } from 'lucide-react'
 import { Button } from '../components/Button'
 import { Input } from '../components/Input'
@@ -27,6 +30,7 @@ import {
   Produto,
   Venda,
   getProdutoByBarcode,
+  createProduto,
   PaymentGateway as GatewayType,
   PaymentType,
   vincularPagamentoVenda,
@@ -76,6 +80,16 @@ export function PDV() {
   const [showPaymentGateway, setShowPaymentGateway] = useState(false)
   const [ultimaVenda, setUltimaVenda] = useState<Venda | null>(null)
   const [imprimindo, setImprimindo] = useState(false)
+  const [showQuickRegister, setShowQuickRegister] = useState(false)
+  const [quickRegisterBarcode, setQuickRegisterBarcode] = useState('')
+  const [quickRegisterData, setQuickRegisterData] = useState({
+    nome: '',
+    precoVenda: '',
+    categoria: '',
+    quantidade: '1',
+  })
+  const [isSavingQuickRegister, setIsSavingQuickRegister] = useState(false)
+  const [showSuspendedSales, setShowSuspendedSales] = useState(false)
 
   const {
     items,
@@ -86,6 +100,7 @@ export function PDV() {
     formaPagamento,
     cpfCliente,
     valorRecebido,
+    suspendedSales,
     addItem,
     removeItem,
     updateQuantidade,
@@ -95,6 +110,9 @@ export function PDV() {
     setValorRecebido,
     clear,
     getItemsForSale,
+    suspendSale,
+    resumeSale,
+    deleteSuspendedSale,
   } = useCartStore()
 
   const { searchProdutos, fetchProdutos, produtos } = useProdutosStore()
@@ -139,9 +157,66 @@ export function PDV() {
         addItem(results[0])
         setSearchQuery('')
         setShowSearch(false)
+      } else {
+        // Produto não encontrado - abrir cadastro rápido
+        setQuickRegisterBarcode(barcode)
+        setQuickRegisterData({
+          nome: '',
+          precoVenda: '',
+          categoria: '',
+          quantidade: '1',
+        })
+        setSearchQuery('')
+        setShowSearch(false)
+        setShowQuickRegister(true)
       }
     }
   }, [addItem, produtos])
+
+  // Handle quick product registration
+  const handleQuickRegister = async (e: React.FormEvent) => {
+    e.preventDefault()
+    setIsSavingQuickRegister(true)
+
+    try {
+      const quantidade = parseInt(quickRegisterData.quantidade) || 1
+
+      await createProduto({
+        nome: quickRegisterData.nome,
+        codigo: quickRegisterBarcode || `PROD-${Date.now()}`,
+        codigoBarras: quickRegisterBarcode || undefined,
+        precoVenda: parseFloat(quickRegisterData.precoVenda.replace(',', '.')),
+        precoCusto: 0,
+        categoria: quickRegisterData.categoria,
+        estoqueAtual: quantidade,
+        estoqueMinimo: 5,
+        ativo: true,
+      })
+
+      // Recarregar lista de produtos
+      fetchProdutos()
+
+      // Feedback de sucesso
+      alert(`✅ Produto cadastrado com sucesso!\n${quantidade} unidade(s) adicionada(s) ao estoque.`)
+
+      // Fechar modal e limpar dados
+      setShowQuickRegister(false)
+      setQuickRegisterBarcode('')
+      setQuickRegisterData({
+        nome: '',
+        precoVenda: '',
+        categoria: '',
+        quantidade: '1',
+      })
+
+      // Focar no campo de busca para cadastrar próximo produto
+      searchInputRef.current?.focus()
+    } catch (error) {
+      alert(error instanceof Error ? error.message : 'Erro ao cadastrar produto')
+    } finally {
+      setIsSavingQuickRegister(false)
+    }
+  }
 
   // Keyboard shortcuts
   useEffect(() => {
@@ -168,6 +243,39 @@ export function PDV() {
         e.preventDefault()
         setShowDiscount(true)
       }
+      // Quick add products F5-F12
+      if (e.key === 'F5' && produtos.length >= 1) {
+        e.preventDefault()
+        addItem(produtos[0])
+      }
+      if (e.key === 'F6' && produtos.length >= 2) {
+        e.preventDefault()
+        addItem(produtos[1])
+      }
+      if (e.key === 'F7' && produtos.length >= 3) {
+        e.preventDefault()
+        addItem(produtos[2])
+      }
+      if (e.key === 'F8' && produtos.length >= 4) {
+        e.preventDefault()
+        addItem(produtos[3])
+      }
+      if (e.key === 'F9' && produtos.length >= 5) {
+        e.preventDefault()
+        addItem(produtos[4])
+      }
+      if (e.key === 'F10' && produtos.length >= 6) {
+        e.preventDefault()
+        addItem(produtos[5])
+      }
+      if (e.key === 'F11' && produtos.length >= 7) {
+        e.preventDefault()
+        addItem(produtos[6])
+      }
+      if (e.key === 'F12' && produtos.length >= 8) {
+        e.preventDefault()
+        addItem(produtos[7])
+      }
       // Escape to close modals
       if (e.key === 'Escape') {
         setShowSearch(false)
@@ -183,7 +291,7 @@ export function PDV() {
 
     window.addEventListener('keydown', handleKeyDown)
     return () => window.removeEventListener('keydown', handleKeyDown)
-  }, [items.length, clear, searchQuery, handleBarcodeSearch])
+  }, [items.length, clear, searchQuery, handleBarcodeSearch, produtos, addItem])
 
   const handleSelectProduct = (produto: Produto) => {
     addItem(produto)
@@ -327,12 +435,39 @@ export function PDV() {
                 Ponto de Venda
               </h1>
               <p className="text-sm text-gray-500 dark:text-gray-400">
-                F1: Buscar | F2: Pagamento | F3: Limpar | F4: Desconto
+                F1: Buscar | F2: Pagar | F3: Limpar | F4: Desconto | F5-F12: Favoritos
               </p>
             </div>
           </div>
 
-          <div className="flex items-center gap-4">
+          <div className="flex items-center gap-3">
+            {/* Suspended sales button */}
+            {suspendedSales.length > 0 && (
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => setShowSuspendedSales(true)}
+                leftIcon={<Clock className="w-4 h-4" />}
+              >
+                {suspendedSales.length} Suspensa{suspendedSales.length !== 1 && 's'}
+              </Button>
+            )}
+
+            {/* Suspend current sale button */}
+            {items.length > 0 && (
+              <Button
+                variant="secondary"
+                size="sm"
+                onClick={() => {
+                  suspendSale()
+                  alert('✅ Venda suspensa! Continue com o próximo cliente.')
+                }}
+                leftIcon={<Pause className="w-4 h-4" />}
+              >
+                Suspender
+              </Button>
+            )}
+
             <Badge variant="info" size="md">
               {items.length} {items.length === 1 ? 'item' : 'itens'}
             </Badge>
@@ -391,21 +526,35 @@ export function PDV() {
           {/* Quick products grid */}
           <div className="flex-1 p-4 overflow-y-auto">
             <h3 className="text-sm font-medium text-gray-500 dark:text-gray-400 mb-4">
-              Produtos Rapidos
+              ⚡ Produtos Favoritos (F5-F12)
             </h3>
             <div className="grid grid-cols-2 gap-3">
-              {produtos.slice(0, 8).map((produto) => (
+              {produtos.slice(0, 8).map((produto, index) => (
                 <button
                   key={produto.id}
                   onClick={() => addItem(produto)}
-                  className="p-4 bg-white dark:bg-gray-900 rounded-xl border border-gray-200 dark:border-gray-700 hover:border-primary-500 hover:shadow-lg transition-all duration-200 text-left"
+                  className="relative p-4 bg-white dark:bg-gray-900 rounded-xl border border-gray-200 dark:border-gray-700 hover:border-primary-500 hover:shadow-lg transition-all duration-200 text-left group"
                 >
-                  <p className="font-medium text-gray-900 dark:text-white text-sm truncate">
+                  {/* Keyboard shortcut badge */}
+                  <div className="absolute top-2 right-2">
+                    <span className="px-2 py-0.5 text-xs font-bold bg-primary-100 dark:bg-primary-900/50 text-primary-700 dark:text-primary-300 rounded border border-primary-300 dark:border-primary-700">
+                      F{index + 5}
+                    </span>
+                  </div>
+
+                  <p className="font-medium text-gray-900 dark:text-white text-sm truncate pr-12">
                     {produto.nome}
                   </p>
                   <p className="text-lg font-bold text-primary-600 dark:text-primary-400 mt-1">
                     {formatCurrency(produto.precoVenda)}
                   </p>
+
+                  {/* Stock indicator */}
+                  {produto.estoqueAtual <= produto.estoqueMinimo && (
+                    <p className="text-xs text-orange-600 dark:text-orange-400 mt-1">
+                      ⚠️ Estoque: {produto.estoqueAtual}
+                    </p>
+                  )}
                 </button>
               ))}
             </div>
@@ -443,9 +592,19 @@ export function PDV() {
                     className="flex items-center gap-4 p-4 bg-gray-50 dark:bg-gray-800 rounded-xl"
                   >
                     <div className="flex-1">
-                      <p className="font-medium text-gray-900 dark:text-white">
-                        {item.produto.nome}
-                      </p>
+                      <div className="flex items-center gap-2">
+                        <p className="font-medium text-gray-900 dark:text-white">
+                          {item.produto.nome}
+                        </p>
+                        {item.produto.precoVendaAtacado &&
+                          item.produto.quantidadeAtacado &&
+                          item.quantidade >= item.produto.quantidadeAtacado &&
+                          item.precoUnitario === item.produto.precoVendaAtacado && (
+                            <Badge variant="success" size="sm">
+                              Preço Atacado
+                            </Badge>
+                          )}
+                      </div>
                       <p className="text-sm text-gray-500 dark:text-gray-400">
                         {formatCurrency(item.precoUnitario)} x {item.quantidade}
                       </p>
@@ -783,6 +942,179 @@ export function PDV() {
         valor={total}
         onPaymentComplete={handlePaymentGatewayComplete}
       />
+
+      {/* Quick Product Registration Modal */}
+      <Modal
+        isOpen={showQuickRegister}
+        onClose={() => setShowQuickRegister(false)}
+        title="⚡ Cadastro Rápido de Produto"
+        size="md"
+      >
+        <form onSubmit={handleQuickRegister} className="space-y-6">
+          {/* Barcode display */}
+          <div className="p-4 bg-blue-50 dark:bg-blue-900/20 rounded-xl border border-blue-200 dark:border-blue-800">
+            <p className="text-sm text-blue-600 dark:text-blue-400 mb-1">
+              Código de barras escaneado:
+            </p>
+            <div className="flex items-center gap-2">
+              <Barcode className="w-5 h-5 text-blue-600 dark:text-blue-400" />
+              <p className="text-lg font-mono font-bold text-blue-900 dark:text-blue-300">
+                {quickRegisterBarcode || 'Sem código'}
+              </p>
+            </div>
+          </div>
+
+          {/* Form fields */}
+          <div className="space-y-4">
+            <Input
+              label="Nome do produto *"
+              value={quickRegisterData.nome}
+              onChange={(e) =>
+                setQuickRegisterData({ ...quickRegisterData, nome: e.target.value })
+              }
+              placeholder="Ex: Batom Ruby Rose 123"
+              required
+              autoFocus
+            />
+
+            <div className="grid grid-cols-2 gap-3">
+              <Input
+                label="Preço de venda *"
+                value={quickRegisterData.precoVenda}
+                onChange={(e) =>
+                  setQuickRegisterData({ ...quickRegisterData, precoVenda: e.target.value })
+                }
+                placeholder="0,00"
+                required
+              />
+
+              <Input
+                label="Quantidade *"
+                type="number"
+                value={quickRegisterData.quantidade}
+                onChange={(e) =>
+                  setQuickRegisterData({ ...quickRegisterData, quantidade: e.target.value })
+                }
+                placeholder="1"
+                min="1"
+                required
+              />
+            </div>
+
+            <Input
+              label="Categoria *"
+              value={quickRegisterData.categoria}
+              onChange={(e) =>
+                setQuickRegisterData({ ...quickRegisterData, categoria: e.target.value })
+              }
+              placeholder="Ex: Maquiagem, Joias, Acessórios"
+              required
+            />
+          </div>
+
+          {/* Info message */}
+          <div className="p-3 bg-green-50 dark:bg-green-900/20 rounded-lg border border-green-200 dark:border-green-800">
+            <p className="text-sm text-green-700 dark:text-green-300 font-medium">
+              📦 {quickRegisterData.quantidade || '1'} unidade(s) será(ão) adicionada(s) ao estoque
+            </p>
+          </div>
+
+          {/* Action buttons */}
+          <div className="flex gap-3">
+            <Button
+              variant="outline"
+              className="flex-1"
+              type="button"
+              onClick={() => setShowQuickRegister(false)}
+              disabled={isSavingQuickRegister}
+            >
+              Cancelar
+            </Button>
+            <Button
+              className="flex-1"
+              type="submit"
+              isLoading={isSavingQuickRegister}
+              leftIcon={<Plus className="w-4 h-4" />}
+            >
+              Cadastrar Produto
+            </Button>
+          </div>
+        </form>
+      </Modal>
+
+      {/* Suspended Sales Modal */}
+      <Modal
+        isOpen={showSuspendedSales}
+        onClose={() => setShowSuspendedSales(false)}
+        title="⏸️ Vendas Suspensas"
+        size="md"
+      >
+        <div className="space-y-4">
+          {suspendedSales.length === 0 ? (
+            <div className="text-center py-8 text-gray-500 dark:text-gray-400">
+              <Clock className="w-12 h-12 mx-auto mb-3 opacity-50" />
+              <p>Nenhuma venda suspensa</p>
+            </div>
+          ) : (
+            <div className="space-y-3">
+              {suspendedSales.map((sale) => (
+                <div
+                  key={sale.id}
+                  className="p-4 bg-gray-50 dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700"
+                >
+                  <div className="flex items-start justify-between mb-3">
+                    <div>
+                      <p className="text-sm text-gray-500 dark:text-gray-400">
+                        {new Date(sale.timestamp).toLocaleTimeString('pt-BR', {
+                          hour: '2-digit',
+                          minute: '2-digit',
+                        })}
+                      </p>
+                      {sale.clienteName && (
+                        <p className="font-medium text-gray-900 dark:text-white">
+                          {sale.clienteName}
+                        </p>
+                      )}
+                    </div>
+                    <p className="text-lg font-bold text-primary-600 dark:text-primary-400">
+                      {formatCurrency(sale.total)}
+                    </p>
+                  </div>
+
+                  <p className="text-sm text-gray-600 dark:text-gray-400 mb-3">
+                    {sale.items.length} {sale.items.length === 1 ? 'item' : 'itens'}
+                  </p>
+
+                  <div className="flex gap-2">
+                    <Button
+                      size="sm"
+                      className="flex-1"
+                      onClick={() => {
+                        resumeSale(sale.id)
+                        setShowSuspendedSales(false)
+                      }}
+                      leftIcon={<Play className="w-4 h-4" />}
+                    >
+                      Retomar
+                    </Button>
+                    <Button
+                      size="sm"
+                      variant="danger"
+                      onClick={() => {
+                        if (confirm('Deseja cancelar esta venda suspensa?')) {
+                          deleteSuspendedSale(sale.id)
+                        }
+                      }}
+                    >
+                      <Trash2 className="w-4 h-4" />
+                    </Button>
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+      </Modal>
     </div>
   )
 }

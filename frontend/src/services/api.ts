@@ -27,10 +27,17 @@ export interface Produto {
   marca?: string
   precoCusto: number
   precoVenda: number
+  precoVendaVarejo?: number
+  precoVendaAtacado?: number
+  quantidadeAtacado?: number
   foto?: string
   estoqueMinimo: number
   estoqueAtual: number
   localizacao?: string
+  apelidos?: string
+  tags?: string
+  dataValidade?: string
+  alertarValidade?: boolean
   ativo: boolean
   createdAt: string
   updatedAt: string
@@ -497,4 +504,442 @@ export const vincularPagamentoVenda = (transacaoId: string, vendaId: number): Pr
   apiCall(`/pagamentos/${transacaoId}/vincular-venda`, {
     method: 'POST',
     body: JSON.stringify({ vendaId }),
+  })
+
+// ============ DEVOLUÇÕES/TROCAS ============
+
+export interface Devolucao {
+  id: number
+  numero: number
+  vendaId: number
+  clienteId?: number
+  funcionarioId: number
+  data: string
+  motivo: 'DEFEITO' | 'ARREPENDIMENTO' | 'TROCA' | 'DANIFICADO'
+  status: 'PENDENTE' | 'APROVADA' | 'PROCESSADA'
+  valorTotal: number
+  observacao?: string
+  dataProcessamento?: string
+  venda?: {
+    numero: number
+  }
+  cliente?: {
+    nome: string
+  }
+  funcionario?: {
+    nome: string
+  }
+  itens?: ItemDevolucao[]
+  _count?: {
+    itens: number
+  }
+}
+
+export interface ItemDevolucao {
+  id: number
+  devolucaoId: number
+  produtoId: number
+  quantidade: number
+  precoUnitario: number
+  motivoItem?: string
+  produto?: Produto
+}
+
+export interface CreateDevolucaoRequest {
+  vendaId: number
+  clienteId?: number
+  motivo: 'DEFEITO' | 'ARREPENDIMENTO' | 'TROCA' | 'DANIFICADO'
+  observacao?: string
+  itens: Array<{
+    produtoId: number
+    quantidade: number
+    motivoItem?: string
+  }>
+}
+
+// Listar devoluções
+export const getDevolucoes = (): Promise<Devolucao[]> =>
+  apiCall('/devolucoes')
+
+// Obter detalhes de uma devolução
+export const getDevolucao = (id: number): Promise<Devolucao> =>
+  apiCall(`/devolucoes/${id}`)
+
+// Criar devolução
+export const createDevolucao = (data: CreateDevolucaoRequest): Promise<Devolucao> =>
+  apiCall('/devolucoes', {
+    method: 'POST',
+    body: JSON.stringify(data),
+  })
+
+// Processar devolução (devolver ao estoque)
+export const processarDevolucao = (id: number): Promise<{ success: boolean; message: string }> =>
+  apiCall(`/devolucoes/${id}/processar`, { method: 'POST', body: JSON.stringify({}) })
+
+// ============ COMANDAS ============
+
+export interface Comanda {
+  id: number
+  numero: number
+  identificador: string
+  vendaId?: number
+  clienteId?: number
+  funcionarioId: number
+  dataAbertura: string
+  dataFechamento?: string
+  status: 'ABERTA' | 'FECHADA' | 'CANCELADA'
+  subtotal: number
+  desconto: number
+  total: number
+  observacao?: string
+  venda?: Venda
+  cliente?: {
+    nome: string
+  }
+  funcionario?: {
+    nome: string
+  }
+  itens?: ItemComanda[]
+  _count?: {
+    itens: number
+  }
+}
+
+export interface ItemComanda {
+  id: number
+  comandaId: number
+  produtoId: number
+  quantidade: number
+  precoUnitario: number
+  desconto: number
+  total: number
+  produto?: Produto
+}
+
+export interface CreateComandaRequest {
+  identificador: string
+  clienteId?: number
+}
+
+// Listar comandas abertas
+export const getComandasAbertas = (): Promise<Comanda[]> =>
+  apiCall('/comandas/abertas')
+
+// Obter detalhes de uma comanda
+export const getComanda = (id: number): Promise<Comanda> =>
+  apiCall(`/comandas/${id}`)
+
+// Criar comanda
+export const createComanda = (data: CreateComandaRequest): Promise<Comanda> =>
+  apiCall('/comandas', {
+    method: 'POST',
+    body: JSON.stringify(data),
+  })
+
+// Adicionar item na comanda
+export const adicionarItemComanda = (comandaId: number, produtoId: number, quantidade: number): Promise<{ success: boolean; message: string }> =>
+  apiCall(`/comandas/${comandaId}/adicionar-item`, {
+    method: 'POST',
+    body: JSON.stringify({ produtoId, quantidade }),
+  })
+
+// Remover item da comanda
+export const removerItemComanda = (comandaId: number, itemId: number): Promise<{ success: boolean; message: string }> =>
+  apiCall(`/comandas/${comandaId}/itens/${itemId}`, { method: 'DELETE' })
+
+// Fechar comanda (criar venda)
+export const fecharComanda = (comandaId: number, formaPagamento: 'DINHEIRO' | 'CARTAO_DEBITO' | 'CARTAO_CREDITO' | 'PIX'): Promise<Venda> =>
+  apiCall(`/comandas/${comandaId}/fechar`, {
+    method: 'POST',
+    body: JSON.stringify({ formaPagamento }),
+  })
+
+// Cancelar comanda
+export const cancelarComanda = (comandaId: number): Promise<{ success: boolean; message: string }> =>
+  apiCall(`/comandas/${comandaId}`, { method: 'DELETE' })
+
+// ============ ATRIBUTOS E VARIACOES ============
+
+export interface TipoAtributo {
+  id: number
+  nome: string
+  ativo: boolean
+  opcoes: OpcaoAtributo[]
+}
+
+export interface OpcaoAtributo {
+  id: number
+  tipoAtributoId: number
+  valor: string
+  tipoAtributo?: TipoAtributo
+}
+
+export interface ProdutoVariacao {
+  id: number
+  produtoId: number
+  sku: string
+  codigoBarras?: string
+  precoVenda?: number
+  estoqueAtual: number
+  ativo: boolean
+  atributos: VariacaoAtributoFormatado[]
+}
+
+export interface VariacaoAtributoFormatado {
+  tipo: string
+  tipoId: number
+  valor: string
+  opcaoId: number
+}
+
+export interface GerarGradeResponse {
+  message: string
+  variacoes: ProdutoVariacao[]
+  totalExistentes: number
+  totalNovas: number
+}
+
+// Atributos - Tipos
+export const getAtributos = (): Promise<TipoAtributo[]> =>
+  apiCall('/atributos')
+
+export const getAtributo = (id: number): Promise<TipoAtributo> =>
+  apiCall(`/atributos/${id}`)
+
+export const createAtributo = (nome: string): Promise<TipoAtributo> =>
+  apiCall('/atributos', {
+    method: 'POST',
+    body: JSON.stringify({ nome }),
+  })
+
+export const updateAtributo = (id: number, data: { nome?: string; ativo?: boolean }): Promise<TipoAtributo> =>
+  apiCall(`/atributos/${id}`, {
+    method: 'PUT',
+    body: JSON.stringify(data),
+  })
+
+export const deleteAtributo = (id: number): Promise<{ message: string }> =>
+  apiCall(`/atributos/${id}`, { method: 'DELETE' })
+
+// Atributos - Opcoes
+export const createOpcaoAtributo = (tipoId: number, valor: string): Promise<OpcaoAtributo> =>
+  apiCall(`/atributos/${tipoId}/opcoes`, {
+    method: 'POST',
+    body: JSON.stringify({ valor }),
+  })
+
+export const deleteOpcaoAtributo = (tipoId: number, opcaoId: number): Promise<{ message: string }> =>
+  apiCall(`/atributos/${tipoId}/opcoes/${opcaoId}`, { method: 'DELETE' })
+
+// Variacoes
+export const getVariacoes = (produtoId: number): Promise<ProdutoVariacao[]> =>
+  apiCall(`/produtos/${produtoId}/variacoes`)
+
+export const gerarGradeVariacoes = (
+  produtoId: number,
+  atributoIds: number[],
+  opcaoIds: number[]
+): Promise<GerarGradeResponse> =>
+  apiCall(`/produtos/${produtoId}/variacoes/gerar`, {
+    method: 'POST',
+    body: JSON.stringify({ atributoIds, opcaoIds }),
+  })
+
+export const updateVariacao = (
+  id: number,
+  data: { sku?: string; codigoBarras?: string | null; precoVenda?: number | null; estoqueAtual?: number; ativo?: boolean }
+): Promise<ProdutoVariacao> =>
+  apiCall(`/variacoes/${id}`, {
+    method: 'PUT',
+    body: JSON.stringify(data),
+  })
+
+export const deleteVariacao = (id: number): Promise<{ message: string }> =>
+  apiCall(`/variacoes/${id}`, { method: 'DELETE' })
+
+export const updateVariacoesBatch = (
+  variacoes: Array<{ id: number; precoVenda?: number | null; estoqueAtual?: number; ativo?: boolean }>
+): Promise<{ message: string; variacoes: ProdutoVariacao[] }> =>
+  apiCall('/variacoes/batch', {
+    method: 'PUT',
+    body: JSON.stringify({ variacoes }),
+  })
+
+// ============ PREVISAO DE DEMANDA (IA) ============
+
+export interface PrevisaoProdutoResumo {
+  produto: {
+    id: number
+    codigo: string
+    nome: string
+    categoria: string
+  }
+  estoqueAtual: number
+  estoqueMinimo: number
+  demandaPrevista: number
+  confiancaMedia: number
+  diasAteZerar: number
+  precisaRepor: boolean
+}
+
+export interface PrevisaoGeral {
+  periodo: {
+    dias: number
+    dataInicio: string
+    dataFim: string
+  }
+  resumo: {
+    totalProdutos: number
+    produtosPrecisamRepor: number
+    categorias: number
+  }
+  produtos: PrevisaoProdutoResumo[]
+}
+
+export interface RiscoRuptura {
+  id: number
+  codigo: string
+  nome: string
+  categoria: string
+  estoqueAtual: number
+  estoqueMinimo: number
+  demandaPrevista7Dias: number
+  diasAteRuptura: number
+  nivelRisco: 'CRITICO' | 'ALTO' | 'MEDIO' | 'BAIXO'
+}
+
+export interface RiscoRupturaResponse {
+  dataAnalise: string
+  resumo: {
+    totalEmRisco: number
+    criticos: number
+    altos: number
+    medios: number
+  }
+  produtos: RiscoRuptura[]
+  alertas: { tipo: string; mensagem: string }[]
+}
+
+export interface PrevisaoProdutoDetalhe {
+  produto: {
+    id: number
+    codigo: string
+    nome: string
+    categoria: string
+    estoqueAtual: number
+    estoqueMinimo: number
+  }
+  historico: { data: string; quantidade: number }[]
+  estatisticas: {
+    totalDiasAnalisados: number
+    diasComVendas: number
+    mediaMovelExponencial: number
+    tendencia: {
+      direcao: 'CRESCENTE' | 'ESTAVEL' | 'DECRESCENTE'
+      taxaCrescimento: number
+      qualidadeModelo: number
+    }
+  }
+  previsoes: {
+    data: string
+    quantidadePrevista: number
+    confianca: number
+    modelo: string
+  }[]
+  demandaProximosDias: {
+    dias: number
+    total: number
+    confiancaMedia: number
+  }
+}
+
+export interface FatorSazonalidade {
+  mes: number
+  mesNome: string
+  fator: number
+  id?: number
+}
+
+export interface CategoriaSazonalidade {
+  categoria: string
+  fatores: FatorSazonalidade[]
+}
+
+export interface SazonalidadeData {
+  meses: string[]
+  categorias: CategoriaSazonalidade[]
+}
+
+export interface PrevisaoDashboard {
+  totalEmRisco: number
+  nivelCritico: number
+  nivelAlto: number
+  produtosDestaque: {
+    id: number
+    codigo: string
+    nome: string
+    estoqueAtual: number
+    diasAteRuptura: number
+    nivelRisco: 'CRITICO' | 'ALTO' | 'MEDIO' | 'BAIXO'
+  }[]
+}
+
+// Previsao - Obter previsao geral
+export const getPrevisaoGeral = (params?: {
+  dias?: number
+  categoria?: string
+  limite?: number
+}): Promise<PrevisaoGeral> => {
+  const searchParams = new URLSearchParams()
+  if (params?.dias) searchParams.append('dias', params.dias.toString())
+  if (params?.categoria) searchParams.append('categoria', params.categoria)
+  if (params?.limite) searchParams.append('limite', params.limite.toString())
+  const query = searchParams.toString()
+  return apiCall(`/previsao/geral${query ? `?${query}` : ''}`)
+}
+
+// Previsao - Obter previsao de um produto
+export const getPrevisaoProduto = (
+  produtoId: number,
+  params?: { dias?: number; diasHistorico?: number }
+): Promise<PrevisaoProdutoDetalhe> => {
+  const searchParams = new URLSearchParams()
+  if (params?.dias) searchParams.append('dias', params.dias.toString())
+  if (params?.diasHistorico) searchParams.append('diasHistorico', params.diasHistorico.toString())
+  const query = searchParams.toString()
+  return apiCall(`/previsao/produtos/${produtoId}${query ? `?${query}` : ''}`)
+}
+
+// Previsao - Risco de ruptura
+export const getRiscoRuptura = (): Promise<RiscoRupturaResponse> =>
+  apiCall('/previsao/risco-ruptura')
+
+// Previsao - Recalcular todas as previsoes
+export const recalcularPrevisoes = (): Promise<{
+  sucesso: boolean
+  dataRecalculo: string
+  resultado: { produtosProcessados: number; erros: number }
+  mensagem: string
+}> =>
+  apiCall('/previsao/recalcular', { method: 'POST' })
+
+// Previsao - Dados para dashboard
+export const getPrevisaoDashboard = (): Promise<PrevisaoDashboard> =>
+  apiCall('/previsao/dashboard')
+
+// Sazonalidade - Listar fatores
+export const getSazonalidade = (): Promise<SazonalidadeData> =>
+  apiCall('/sazonalidade')
+
+// Sazonalidade - Atualizar fatores
+export const updateSazonalidade = (
+  fatores: { categoria: string; mes: number; fator: number }[]
+): Promise<{
+  sucesso: boolean
+  resultado: { atualizados: number; criados: number }
+  mensagem: string
+}> =>
+  apiCall('/sazonalidade', {
+    method: 'PUT',
+    body: JSON.stringify({ fatores }),
   })

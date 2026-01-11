@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import {
   Search,
   Plus,
@@ -8,6 +8,9 @@ import {
   Filter,
   X,
   ImagePlus,
+  Barcode,
+  Upload,
+  Grid3X3,
 } from 'lucide-react'
 import { Header } from '../components/Header'
 import { Card } from '../components/Card'
@@ -16,6 +19,8 @@ import { Input } from '../components/Input'
 import { Select } from '../components/Select'
 import { Modal } from '../components/Modal'
 import { Badge } from '../components/Badge'
+import { CSVImporter } from '../components/CSVImporter'
+import { GradeVariacoes } from '../components/GradeVariacoes'
 import { useProdutosStore } from '../stores/produtosStore'
 import { formatCurrency, Produto } from '../services/api'
 
@@ -25,11 +30,18 @@ interface ProdutoFormData {
   codigoBarras: string
   precoVenda: string
   precoCusto: string
+  precoVendaVarejo: string
+  precoVendaAtacado: string
+  quantidadeAtacado: string
   categoria: string
   estoqueAtual: string
   estoqueMinimo: string
   foto: string
+  apelidos: string
+  tags: string
   ativo: boolean
+  dataValidade: string
+  alertarValidade: boolean
 }
 
 const initialFormData: ProdutoFormData = {
@@ -38,11 +50,18 @@ const initialFormData: ProdutoFormData = {
   codigoBarras: '',
   precoVenda: '',
   precoCusto: '',
+  precoVendaVarejo: '',
+  precoVendaAtacado: '',
+  quantidadeAtacado: '',
   categoria: '',
   estoqueAtual: '0',
   estoqueMinimo: '5',
   foto: '',
+  apelidos: '',
+  tags: '',
   ativo: true,
+  dataValidade: '',
+  alertarValidade: false,
 }
 
 export function Produtos() {
@@ -62,11 +81,15 @@ export function Produtos() {
   const [showModal, setShowModal] = useState(false)
   const [showDeleteModal, setShowDeleteModal] = useState(false)
   const [showCategoryModal, setShowCategoryModal] = useState(false)
+  const [showImporterModal, setShowImporterModal] = useState(false)
   const [editingProduto, setEditingProduto] = useState<Produto | null>(null)
   const [deletingProduto, setDeletingProduto] = useState<Produto | null>(null)
   const [formData, setFormData] = useState<ProdutoFormData>(initialFormData)
   const [newCategory, setNewCategory] = useState({ nome: '', cor: '#c026d3' })
   const [isSaving, setIsSaving] = useState(false)
+  const [showVariacoesModal, setShowVariacoesModal] = useState(false)
+  const [selectedProdutoVariacoes, setSelectedProdutoVariacoes] = useState<Produto | null>(null)
+  const codigoBarrasInputRef = useRef<HTMLInputElement>(null)
 
   useEffect(() => {
     fetchProdutos()
@@ -80,21 +103,53 @@ export function Produtos() {
   const handleOpenModal = (produto?: Produto) => {
     if (produto) {
       setEditingProduto(produto)
+
+      // Parse JSON fields
+      let apelidosStr = ''
+      let tagsStr = ''
+      try {
+        if ((produto as any).apelidos) {
+          const apelidosArray = JSON.parse((produto as any).apelidos)
+          apelidosStr = Array.isArray(apelidosArray) ? apelidosArray.join(', ') : ''
+        }
+      } catch {
+        apelidosStr = (produto as any).apelidos || ''
+      }
+      try {
+        if ((produto as any).tags) {
+          const tagsArray = JSON.parse((produto as any).tags)
+          tagsStr = Array.isArray(tagsArray) ? tagsArray.join(', ') : ''
+        }
+      } catch {
+        tagsStr = (produto as any).tags || ''
+      }
+
       setFormData({
         nome: produto.nome,
         descricao: '',
         codigoBarras: produto.codigoBarras || '',
         precoVenda: produto.precoVenda.toString(),
         precoCusto: produto.precoCusto?.toString() || '',
+        precoVendaVarejo: (produto as any).precoVendaVarejo?.toString() || '',
+        precoVendaAtacado: (produto as any).precoVendaAtacado?.toString() || '',
+        quantidadeAtacado: (produto as any).quantidadeAtacado?.toString() || '',
         categoria: produto.categoria || '',
         estoqueAtual: produto.estoqueAtual.toString(),
         estoqueMinimo: produto.estoqueMinimo.toString(),
         foto: produto.foto || '',
+        apelidos: apelidosStr,
+        tags: tagsStr,
         ativo: produto.ativo,
+        dataValidade: (produto as any).dataValidade ? new Date((produto as any).dataValidade).toISOString().split('T')[0] : '',
+        alertarValidade: (produto as any).alertarValidade || false,
       })
     } else {
       setEditingProduto(null)
       setFormData(initialFormData)
+      // Auto-focus no campo de código de barras para facilitar escaneamento
+      setTimeout(() => {
+        codigoBarrasInputRef.current?.focus()
+      }, 100)
     }
     setShowModal(true)
   }
@@ -110,6 +165,16 @@ export function Produtos() {
     setIsSaving(true)
 
     try {
+      // Convert apelidos and tags to JSON arrays
+      const apelidosArray = formData.apelidos
+        .split(',')
+        .map(a => a.trim())
+        .filter(Boolean)
+      const tagsArray = formData.tags
+        .split(',')
+        .map(t => t.trim())
+        .filter(Boolean)
+
       const data = {
         nome: formData.nome,
         codigo: formData.codigoBarras || `PROD-${Date.now()}`,
@@ -118,11 +183,24 @@ export function Produtos() {
         precoCusto: formData.precoCusto
           ? parseFloat(formData.precoCusto.replace(',', '.'))
           : 0,
+        precoVendaVarejo: formData.precoVendaVarejo
+          ? parseFloat(formData.precoVendaVarejo.replace(',', '.'))
+          : undefined,
+        precoVendaAtacado: formData.precoVendaAtacado
+          ? parseFloat(formData.precoVendaAtacado.replace(',', '.'))
+          : undefined,
+        quantidadeAtacado: formData.quantidadeAtacado
+          ? parseInt(formData.quantidadeAtacado)
+          : undefined,
         categoria: formData.categoria,
         estoqueAtual: parseInt(formData.estoqueAtual),
         estoqueMinimo: parseInt(formData.estoqueMinimo),
         foto: formData.foto || undefined,
+        apelidos: apelidosArray.length > 0 ? JSON.stringify(apelidosArray) : undefined,
+        tags: tagsArray.length > 0 ? JSON.stringify(tagsArray) : undefined,
         ativo: formData.ativo,
+        dataValidade: formData.dataValidade ? new Date(formData.dataValidade).toISOString() : undefined,
+        alertarValidade: formData.alertarValidade,
       }
 
       if (editingProduto) {
@@ -230,6 +308,13 @@ export function Produtos() {
           <div className="flex gap-3">
             <Button
               variant="outline"
+              onClick={() => setShowImporterModal(true)}
+              leftIcon={<Upload className="w-4 h-4" />}
+            >
+              Importar CSV
+            </Button>
+            <Button
+              variant="outline"
               onClick={() => setShowCategoryModal(true)}
               leftIcon={<Filter className="w-4 h-4" />}
             >
@@ -283,8 +368,20 @@ export function Produtos() {
                       size="sm"
                       variant="secondary"
                       onClick={() => handleOpenModal(produto)}
+                      title="Editar produto"
                     >
                       <Edit2 className="w-4 h-4" />
+                    </Button>
+                    <Button
+                      size="sm"
+                      variant="secondary"
+                      onClick={() => {
+                        setSelectedProdutoVariacoes(produto)
+                        setShowVariacoesModal(true)
+                      }}
+                      title="Gerenciar variacoes"
+                    >
+                      <Grid3X3 className="w-4 h-4" />
                     </Button>
                     <Button
                       size="sm"
@@ -293,6 +390,7 @@ export function Produtos() {
                         setDeletingProduto(produto)
                         setShowDeleteModal(true)
                       }}
+                      title="Excluir produto"
                     >
                       <Trash2 className="w-4 h-4" />
                     </Button>
@@ -355,11 +453,19 @@ export function Produtos() {
               />
             </div>
 
-            <Input
-              label="Codigo de barras"
-              value={formData.codigoBarras}
-              onChange={(e) => setFormData({ ...formData, codigoBarras: e.target.value })}
-            />
+            <div className="col-span-2">
+              <Input
+                ref={codigoBarrasInputRef}
+                label="Código de barras (EAN/GTIN)"
+                value={formData.codigoBarras}
+                onChange={(e) => setFormData({ ...formData, codigoBarras: e.target.value })}
+                placeholder="Escaneie com o leitor ou digite o código"
+                leftIcon={<Barcode className="w-5 h-5" />}
+              />
+              <p className="text-xs text-gray-500 dark:text-gray-400 mt-1.5 ml-1">
+                💡 Dica: Use o leitor de código de barras diretamente neste campo
+              </p>
+            </div>
 
             <Input
               label="Categoria *"
@@ -389,6 +495,36 @@ export function Produtos() {
               onChange={(e) => setFormData({ ...formData, precoCusto: e.target.value })}
               placeholder="0,00"
             />
+
+            <div className="col-span-2">
+              <label className="block text-sm font-medium text-gray-700 dark:text-gray-200 mb-1.5">
+                Tabela de Preços (Atacado/Varejo)
+              </label>
+              <div className="grid grid-cols-3 gap-3">
+                <Input
+                  label="Preço Varejo"
+                  value={formData.precoVendaVarejo}
+                  onChange={(e) => setFormData({ ...formData, precoVendaVarejo: e.target.value })}
+                  placeholder="15,90"
+                />
+                <Input
+                  label="Preço Atacado"
+                  value={formData.precoVendaAtacado}
+                  onChange={(e) => setFormData({ ...formData, precoVendaAtacado: e.target.value })}
+                  placeholder="12,90"
+                />
+                <Input
+                  label="Qtd Mín. Atacado"
+                  type="number"
+                  value={formData.quantidadeAtacado}
+                  onChange={(e) => setFormData({ ...formData, quantidadeAtacado: e.target.value })}
+                  placeholder="10"
+                />
+              </div>
+              <p className="text-xs text-gray-500 dark:text-gray-400 mt-1.5">
+                Deixe vazio para usar apenas o preço de venda padrão
+              </p>
+            </div>
 
             <Input
               label="Estoque atual"
@@ -420,6 +556,54 @@ export function Produtos() {
                 value={formData.descricao}
                 onChange={(e) => setFormData({ ...formData, descricao: e.target.value })}
               />
+            </div>
+
+            <div className="col-span-2">
+              <label className="block text-sm font-medium text-gray-700 dark:text-gray-200 mb-1.5">
+                Busca Inteligente
+              </label>
+              <div className="space-y-3">
+                <Input
+                  label="Apelidos/Sinônimos (separados por vírgula)"
+                  value={formData.apelidos}
+                  onChange={(e) => setFormData({ ...formData, apelidos: e.target.value })}
+                  placeholder="batom ruby, ruby rose, lipstick"
+                />
+                <Input
+                  label="Tags (separados por vírgula)"
+                  value={formData.tags}
+                  onChange={(e) => setFormData({ ...formData, tags: e.target.value })}
+                  placeholder="maquiagem, vermelho, lábios"
+                />
+              </div>
+              <p className="text-xs text-gray-500 dark:text-gray-400 mt-1.5">
+                Estes campos ajudam a encontrar produtos com diferentes termos de busca
+              </p>
+            </div>
+
+            <div className="col-span-2">
+              <label className="block text-sm font-medium text-gray-700 dark:text-gray-200 mb-1.5">
+                Controle de Validade
+              </label>
+              <div className="grid grid-cols-2 gap-4">
+                <Input
+                  label="Data de Validade"
+                  type="date"
+                  value={formData.dataValidade}
+                  onChange={(e) => setFormData({ ...formData, dataValidade: e.target.value })}
+                />
+                <label className="flex items-center gap-3 cursor-pointer pt-6">
+                  <input
+                    type="checkbox"
+                    checked={formData.alertarValidade}
+                    onChange={(e) => setFormData({ ...formData, alertarValidade: e.target.checked })}
+                    className="w-5 h-5 rounded border-gray-300 text-primary-600 focus:ring-primary-500"
+                  />
+                  <span className="text-sm font-medium text-gray-700 dark:text-gray-200">
+                    Alertar sobre validade
+                  </span>
+                </label>
+              </div>
             </div>
 
             <div className="col-span-2">
@@ -524,6 +708,35 @@ export function Produtos() {
             <Button type="submit">Criar Categoria</Button>
           </div>
         </form>
+      </Modal>
+
+      {/* CSV Importer Modal */}
+      <Modal
+        isOpen={showImporterModal}
+        onClose={() => setShowImporterModal(false)}
+        title="Importar Produtos"
+        size="lg"
+      >
+        <CSVImporter />
+      </Modal>
+
+      {/* Variations Modal */}
+      <Modal
+        isOpen={showVariacoesModal}
+        onClose={() => {
+          setShowVariacoesModal(false)
+          setSelectedProdutoVariacoes(null)
+        }}
+        title={`Variacoes - ${selectedProdutoVariacoes?.nome || ''}`}
+        size="xl"
+      >
+        {selectedProdutoVariacoes && (
+          <GradeVariacoes
+            produtoId={selectedProdutoVariacoes.id}
+            produtoPrecoVenda={selectedProdutoVariacoes.precoVenda}
+            onUpdate={fetchProdutos}
+          />
+        )}
       </Modal>
     </div>
   )
