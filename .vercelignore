@@ -4,6 +4,6 @@
 # Ignorar arquivos backend na raiz
 /backend/
 /prisma/
-package.json
-package-lock.json
-tsconfig.json
+/package.json
+/package-lock.json
+/tsconfig.json
