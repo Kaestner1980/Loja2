@@ -3,6 +3,9 @@
   "version": "1.0.0",
   "description": "Sistema de PDV para loja de joias e maquiagem",
   "main": "dist-electron/main.js",
+  "engines": {
+    "node": "18.x"
+  },
   "scripts": {
     "dev": "vite",
     "dev:web": "vite",
