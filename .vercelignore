@@ -1,0 +1,9 @@
+# Ignorar API backend - não fazer deploy de serverless functions
+api/
+backend/
+prisma/
+*.ts
+*.js
+
+# Manter apenas o frontend
+!frontend/
