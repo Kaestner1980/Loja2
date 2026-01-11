@@ -4,7 +4,7 @@
   "description": "Sistema de PDV para loja de joias e maquiagem",
   "main": "dist-electron/main.js",
   "engines": {
-    "node": "24.x"
+    "node": "20.x"
   },
   "scripts": {
     "dev": "vite",
