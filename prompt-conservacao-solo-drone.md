@@ -38,6 +38,7 @@ A imagem de referência (story do Instagram `@rizzardi.irrigacao`, projeto "Faze
 - Dimensiona **espaçamento entre terraços** por Bentley (EMBRAPA, 1980) e Lombardi Neto (1994), com comparação lado a lado e ajuste operacional.
 - **Loca automaticamente** os terraços sobre o MDT (em nível ou com gradiente), com edição manual vetorial.
 - Traça e dimensiona **canais de escoamento** (canais escoadouros vegetados) pelos talvegues naturais identificados no acúmulo de fluxo, com verificação de velocidade máxima admissível (Manning).
+- Projeta **escoamento por tubulação enterrada** como alternativa/complemento aos canais superficiais: terraços com deságue subterrâneo (riser + coletor PEAD), WASCOBs, barraginhas, caixas secas e estruturas de queda/dissipação — catálogo completo na seção 5.5.
 - Gera **perfil transversal do terraço** com seção do canal e camalhão (corte/aterro).
 - Exporta: **relatório PDF** (memorial de cálculo + mapas), **shapefile/KML/DXF/GeoJSON** das linhas para piloto automático de trator e para máquinas de terraceamento.
 
@@ -46,7 +47,8 @@ A imagem de referência (story do Instagram `@rizzardi.irrigacao`, projeto "Faze
 - Processamento fotogramétrico das imagens brutas do drone (o usuário insere ortomosaico e MDS prontos).
 - Zoneamento de fertilidade por índices multiespectrais (NDVI/NDRE do Mavic 3M) — v2, ver seção 12.
 - Cálculo de perda de solo USLE/RUSLE completo por pixel — v2 (MVP usa apenas os fatores de uso/manejo na fórmula de Lombardi Neto).
-- Projeto executivo de bacias de contenção ("barraginhas") — v2.
+- Drenagem controlada com comportas (drainage water management) — v2 (o modelo de dados já prevê o nó de controle, seção 5.5.3).
+- Detecção automática de estradas/carreadores no ortomosaico para posicionar caixas secas — no MVP a marcação é manual.
 
 ---
 
@@ -134,7 +136,69 @@ Equação IDF local: `i = K · T^a / (t + b)^c` (i em mm/h; T em anos; t em min;
 - Recomendação automática de **revestimento vegetado** (grama batatais/braquiária) e de estruturas de dissipação quando a velocidade exceder o admissível.
 - **Rotulagem automática numerada** ("Canal de Escoamento 01, 02…"), como no mapa do concorrente.
 
-### 5.5 Práticas complementares para preservar a fertilidade da camada superficial
+### 5.5 Catálogo de técnicas de escoamento planejado (incluindo tubulação enterrada)
+
+O sistema deve modelar o escoamento como uma **rede**: cada terraço/estrutura tem um **destino de deságue** explícito, e todo caminho termina em um **exutório estável**. O projetista escolhe, por vertente, entre saída superficial (canal vegetado) e **saída subterrânea (tubulação enterrada)** — ou combinação das duas. Referências de engenharia: padrões NRCS dos EUA (Terrace 600, Underground Outlet 620, WASCOB 638, Grassed Waterway 412, Subsurface Drain 606) adaptados à realidade brasileira.
+
+#### 5.5.1 Terraço com deságue subterrâneo (underground outlet — NRCS 620)
+
+Alternativa moderna ao canal escoadouro superficial: cada bolsão de terraço deságua em uma **tomada d'água vertical (riser)** conectada a um **tubo coletor enterrado** que conduz a água até o exutório (curso d'água estável, bacia de dissipação).
+
+- **Componentes:** riser vertical perfurado (PEAD ou PVC) com chapéu/grade anti-detritos; **placa de orifício** na base do riser controlando a vazão de esvaziamento (esvaziar o bolsão em ≤ 24–48 h, sem danificar a cultura e maximizando a sedimentação); tubo coletor enterrado ao longo da linha de maior declive; junta anti-percolação (anti-seep collar) nas travessias do camalhão; saída com dissipador.
+- **Vantagens:** elimina os canais escoadouros superficiais (área 100% plantável — "terraço cultivável"), **a água sai limpa** (o bolsão funciona como decantador: o sedimento fértil fica no talhão — alinhado ao objetivo central do projeto), reduz manutenção de canais e permite terraços em rampas onde não há talvegue vegetado seguro.
+- **Dimensionamento no sistema:** vazão do orifício `Q = Cd·A·√(2gH)` (Cd≈0,6); volume do bolsão pelo balanço volumétrico da seção 5.3; tubo coletor por Manning para seção plena, com Q acumulada dos risers a montante; verificação de recobrimento mínimo e de velocidade de saída.
+
+#### 5.5.2 Tipos de tubulação enterrada (catálogo do sistema)
+
+| Tipo | Diâmetros típicos | Uso no projeto | Observações |
+|---|---|---|---|
+| **PEAD corrugado perfurado (dreno flexível)** | 65–200 mm, em rolos | Drenos coletores de água subterrânea; captação difusa em bolsões | Leve, fornecido em rolo (poucas emendas), acompanha curvas; envolver com **envelope de brita e/ou manta geotêxtil** contra colmatação |
+| **PEAD corrugado parede dupla (externa corrugada, interna lisa)** | 300–1600 mm | **Coletores principais** de underground outlets e travessias de carreadores | Alta rigidez anelar (classes SN), parede interna lisa (Manning n≈0,010–0,012); substituto moderno da manilha |
+| **PVC rígido (liso)** | 75–300 mm | Risers/tomadas verticais, trechos de conduto sob camalhão, saídas | Fácil perfuração controlada do riser; proteger trecho exposto contra UV e tráfego de máquinas |
+| **Manilha/tubo de concreto** | 300–1000 mm | Travessias de estradas internas com grande vazão; caixas de passagem | Pesado, exige junta bem executada; preferir PEAD parede dupla em instalações novas |
+| **Aço galvanizado/corrugado (bueiro)** | 400–1200 mm | Bueiros de estrada e quedas d'água entubadas (pipe drop) | Usado em estruturas de queda com caixa de entrada |
+
+Regras de projeto que o sistema deve verificar automaticamente: **recobrimento mínimo** sobre o tubo (≥ 0,60 m em área trafegada por máquinas; conforme classe de rigidez), **declividade mínima** para autolimpeza (velocidade ≥ 0,6 m/s a seção plena), **velocidade máxima** na saída (dissipador obrigatório acima do admissível do solo), diâmetro mínimo prático de coletor (150–200 mm, contra entupimento) e **caixas de inspeção** a cada mudança de direção/declive ou ~100 m.
+
+#### 5.5.3 Drenagem subterrânea de áreas úmidas (tile drainage — NRCS 606)
+
+Para baixadas e manchas hidromórficas dentro do talhão (declive < 2%, lençol alto), onde a enxurrada vira encharcamento:
+
+- Malha **espinha de peixe** ou paralela de drenos PEAD corrugado perfurado (espaçamento 15–40 m e profundidade 0,9–1,4 m conforme condutividade hidráulica do solo — parâmetro de entrada), desaguando em coletor e daí no exutório.
+- **Blind inlet (entrada cega):** leito de brita+geotêxtil sobre o dreno em depressões fechadas, captando água superficial **sem estrutura exposta** e filtrando sedimento — preferível a bocas abertas para preservar solo e trafegabilidade.
+- **Drenagem controlada (drainage water management — NRCS 554):** caixas com comportas/stop-logs no coletor para segurar o lençol na entressafra (retém água e nitrato no perfil) e liberar antes do plantio — v2, mas o modelo de dados já deve prever estrutura de controle no nó da rede.
+
+#### 5.5.4 Bacias de contenção e sedimentação
+
+- **WASCOB (NRCS 638):** mini-barragem seca transversal a uma linha de drenagem dentro do talhão, com riser + tubo enterrado; retém a enxurrada, decanta o sedimento e esvazia em ≤ 24 h. Ideal para "cortar" voçorocas incipientes sem perder área de plantio.
+- **Barraginhas / bacias de infiltração (modelo Embrapa):** bacias escavadas em meia-lua (10–20 m de diâmetro, 1,5–2 m de profundidade) nos deságues e pontos de concentração; **sem tubo** — funcionam por infiltração total, recarregando o lençol. Posicionamento automático no acúmulo de fluxo; volume = enxurrada da chuva de projeto da microbacia de contribuição.
+- **Caixas secas:** bacias na lateral de **estradas rurais/carreadores** captando a água do leito da estrada (grande gerador de enxurrada que invade lavouras); o sistema deve traçá-las ao detectar estradas no ortomosaico (marcação manual no MVP).
+
+#### 5.5.5 Estruturas de queda e dissipação de energia
+
+Onde o escoamento precisa vencer desnível concentrado (cabeceira de voçoroca, saída de canal em barranco):
+
+- **Queda entubada (pipe drop / drop inlet):** caixa de entrada + tubo vertical/inclinado + bacia de dissipação — padrão para desaguar terraços em canais mais baixos.
+- **Escada hidráulica (degraus de concreto)** ou **rampa com enrocamento (riprap)** para quedas menores.
+- **Bacia de dissipação com enrocamento** na saída de todo tubo enterrado (dimensão em função de Q e velocidade).
+- O sistema marca automaticamente **pontos que exigem dissipador**: saída de tubo com v > v_admissível, degrau > 0,5 m no perfil do canal, confluências com ângulo fechado.
+
+#### 5.5.6 Critério de escolha entre as técnicas (lógica de recomendação do sistema)
+
+```
+Água concentrada no talhão?
+├─ Rampa uniforme, com talvegue vegetável estável → canal escoadouro vegetado (5.4)
+├─ Sem espaço para canal / área nobre de plantio / solo muito erodível
+│    → terraço com deságue subterrâneo (riser + tubo PEAD)          [5.5.1]
+├─ Linha de drenagem com voçoroca incipiente → WASCOB com tubo      [5.5.4]
+├─ Deságue disperso em pastagem/cerrado, foco em recarga → barraginha [5.5.4]
+├─ Baixada encharcada (<2% declive) → tile drainage + blind inlet    [5.5.3]
+└─ Desnível concentrado no caminho → estrutura de queda + dissipador [5.5.5]
+```
+
+Custo relativo (ordem de grandeza, para o comparador de cenários do relatório): canal vegetado < barraginha < terraço convencional < WASCOB < underground outlet < tile drainage. O sistema deve permitir **comparar cenários** (ex.: canais superficiais × tubulação enterrada) mostrando área plantável ganha, volume de terra movimentada e custo estimado por técnica.
+
+### 5.6 Práticas complementares para preservar a fertilidade da camada superficial
 
 O relatório deve recomendar automaticamente (regras por classe de declive/uso):
 
@@ -153,7 +217,7 @@ O relatório deve recomendar automaticamente (regras por classe de declive/uso):
 2. Determinar EV/EH pelo método escolhido; partir da **cota mais alta** da vertente.
 3. Para **terraço em nível**: extrair a **curva de nível exata** na cota de cada terraço (marching squares sobre o MDT), suavizar (Douglas-Peucker + spline com raio mínimo de curvatura compatível com máquinas, ex.: R ≥ 15 m).
 4. Para **terraço com gradiente**: caminhar sobre o MDT a partir do ponto de deságue (canal escoadouro) mantendo gradiente constante (0,1–0,5%) — algoritmo de "contorno com declive" célula a célula.
-5. Interromper/ancorar terraços em bordas do talhão, carreadores e canais; garantir **deságue seguro** de cada terraço com gradiente em um canal numerado.
+5. Interromper/ancorar terraços em bordas do talhão, carreadores e canais; garantir **deságue seguro** de cada terraço com gradiente em um destino explícito — canal numerado **ou riser de tubulação enterrada** (seção 5.5.1). Para redes enterradas, traçar o coletor pelo caminho de maior declive (mínimo de escavação, declividade contínua), posicionar risers no ponto baixo de cada bolsão e validar a rede como grafo: todo nó converge para o exutório, sem contra-declive nem sifões.
 6. Detectar conflitos (terraços a menos de EHmin, cruzamentos, raios impraticáveis) e marcar para **edição manual** no mapa (arrastar vértices, dividir/mesclar, mudar cota).
 7. Recalcular perfil e volumes (corte/aterro por seção-tipo × comprimento) após cada edição.
 
@@ -178,7 +242,7 @@ O relatório deve recomendar automaticamente (regras por classe de declive/uso):
 
 ### 7.2 Visualizador de mapa (tela principal — paridade com o mapa do concorrente)
 
-- Base: ortomosaico (tiles COG). Camadas ligáveis: hillshade, declividade, curvas de nível **coloridas por classe de elevação** (rampa amarelo→vermelho como no concorrente), **setas de fluxo** (azuis), rede de drenagem, microbacias, terraços (verde), canais de escoamento (ciano, **rotulados e numerados**).
+- Base: ortomosaico (tiles COG). Camadas ligáveis: hillshade, declividade, curvas de nível **coloridas por classe de elevação** (rampa amarelo→vermelho como no concorrente), **setas de fluxo** (azuis), rede de drenagem, microbacias, terraços (verde), canais de escoamento (ciano, **rotulados e numerados**), **rede de tubulação enterrada** (linha tracejada roxa com diâmetro rotulado, risers como círculos, caixas de inspeção como quadrados), bacias/WASCOBs/barraginhas (polígonos), estruturas de queda e dissipadores (ícones de alerta/queda).
 - Ferramentas: medir distância/área, inspecionar cota/declividade no cursor, perfil ao longo de linha desenhada.
 - Stack sugerida: **MapLibre GL JS** (ou Leaflet) + `titiler` para servir COG; vetores em GeoJSON com edição via mapbox-gl-draw.
 
@@ -254,6 +318,23 @@ model DrainChannel {
   designFlowM3s Float, maxVelocityMs Float, lining /*VEGETADO|...*/,
   alerts Json
 }
+
+model PipelineSegment {  // rede de tubulação enterrada (grafo direcionado)
+  id, projectId, label String /* "COLETOR 01" */,
+  geometry Json /*LineString 3D: x,y,z do tubo*/,
+  material /*PEAD_CORRUGADO_PERFURADO|PEAD_PAREDE_DUPLA|PVC|CONCRETO|ACO*/,
+  diameterMm Int, slopePct Float, coverMinM Float, manningN Float,
+  designFlowM3s Float, fullFlowVelocityMs Float,
+  upstreamNodeId String?, downstreamNodeId String?, alerts Json
+}
+
+model OutletStructure {  // nós da rede de escoamento
+  id, projectId, kind /*RISER|BLIND_INLET|CAIXA_INSPECAO|COMPORTA|PIPE_DROP|
+                        DISSIPADOR|WASCOB|BARRAGINHA|CAIXA_SECA|EXUTORIO*/,
+  geometry Json /*Point*/, elevationM Float,
+  params Json /*orifício (Cd, diâmetro, H), volume da bacia, riprap etc.*/,
+  drainsTerraceId String?, pipelineSegmentId String?, alerts Json
+}
 ```
 
 ## 10. Requisitos Não-Funcionais
@@ -287,6 +368,10 @@ O Mavic 3M carrega 4 câmeras multiespectrais (G, R, RedEdge, NIR) além da RGB.
 - Software Terraço 4.1 (UFV) — benchmark: [Manual](https://arquivo.ufv.br/ctq/terraco/manual.html), [Estudo de caso de dimensionamento](https://www.produccioncientificaluz.org/index.php/agronomia/article/view/34728)
 - Hidrologia open source: [WhiteboxTools — Hydrological Analysis](https://www.whiteboxgeo.com/manual/wbt_book/available_tools/hydrological_analysis.html), [WhiteboxTools — Home](https://jblindsay.github.io/ghrg/WhiteboxTools/index.html), [Watershed delineation com WBT no QGIS](https://rashms.com/gis/watershed-delineation-using-whitebox-tools-wbt-plugin-in-qgis/)
 - Drone/fotogrametria: [DJI Mavic 3 Multispectral RTK — especificações](https://www.nwdrones.com.br/drone-dji-mavic-3-multispectral-rtk), [Guia de mapeamento aéreo com drone](https://odrones.com.br/mapeamento-aereo-com-drone/), [Processamento de imagens de drone (ortho/MDS/MDT)](https://terramapeada.com.br/blog/processamento-de-imagens-de-drone)
+- Deságue subterrâneo e drenagem enterrada (padrões NRCS/USDA): [Underground Outlet — Riser (Code 620), overview](https://www.nrcs.usda.gov/sites/default/files/2022-10/Underground_Outlet_620_Overview_9_2020.pdf), [Subsurface Drainage (NRCS 606)](https://agbmps.osu.edu/bmp/subsurface-drainage-nrcs-606), [NRCS Engineering Field Handbook cap. 14 — Water Management/Drainage (PDF)](https://www.wcc.nrcs.usda.gov/ftpref/wntsc/Drainage/Drainmod/Refferences/EFH14.pdf)
+- Bacias de sedimentação e canais vegetados: [WASCOB (Code 638), overview NRCS](https://www.nrcs.usda.gov/sites/default/files/2022-10/Water_and_Sediment_Control_Basin_638_Overview_Oct_2017.pdf), [WASCOB — dry dam construction (Fairfield SWCD)](https://fairfieldswcd.org/water-sediment-control-basin-wascob/), [Norma WASCOB 638 Wisconsin (PDF)](https://dnr.wisconsin.gov/sites/default/files/topic/Wetlands/638_WI_CPS_Water_and_Sediment_%28Con%29trol_Basin_2018.pdf), [Grassed waterway management — Purdue Extension](https://extension.purdue.edu/uav/in-field-conservation/grassed-waterway-management.html), [Estruturas de controle de erosão agrícola — Ontário](https://www.ontario.ca/page/agricultural-erosion-control-structures)
+- Barraginhas e caixas secas (Brasil): [Barraginhas, caixas secas e bacias de contenção — capítulo técnico (PDF)](https://www.meridapublishers.com/crta/cap3.pdf), [Bacias de infiltração (barraginhas) — Brazilian Journals (PDF)](https://ojs.brazilianjournals.com.br/ojs/index.php/BRJD/article/download/78892/54581/195590), [Controle de erosão em estradas rurais — SciELO](https://www.scielo.br/j/sn/a/JdwHD7j6yDYynxMV7LBc6QD/?lang=pt)
+- Tubos de drenagem (mercado BR): [Tubo dreno PEAD corrugado — NTC Brasil](https://www.ntcbrasil.com.br/tubo-dreno-pead-corrugado-para-drenagem/), [Tipos de tubo dreno PEAD — Diprotec](https://diprotecgeo.com.br/faq/tubo-dreno/tipos-tubo-dreno), [Tubo corrugado para drenagem — Tucano](https://tucano.ind.br/blog/tubo-corrugado-para-drenagem)
 
 ## 14. Checklist de Implementação (para o Opus)
 
@@ -306,10 +391,15 @@ O Mavic 3M carrega 4 câmeras multiespectrais (G, R, RedEdge, NIR) além da RGB.
 - [ ] Espaçamento Bentley (EMBRAPA 1980) e Lombardi Neto (1994) — **verificar constantes na literatura** e validar contra Terraço 4.1 (golden tests)
 - [ ] Balanço volumétrico (terraço em nível) e Manning (gradiente/canais) com verificação de velocidade admissível
 - [ ] Tabela comparativa EVt/EHt por tipo de base + ajuste operacional de EH
+- [ ] Motor da rede enterrada: orifício do riser (esvaziamento ≤ 24–48 h), Manning em conduto (n por material), Q acumulada por trecho, verificação de recobrimento/velocidade mín-máx/diâmetro mínimo, dimensionamento de dissipador na saída
+- [ ] Dimensionamento de WASCOB/barraginha (volume da enxurrada da microbacia de contribuição) e regra de recomendação da seção 5.5.6
 
 **Fase 3 — Locação e edição**
 - [ ] Locação automática em nível (curvas exatas) e com gradiente (contorno com declive)
 - [ ] Traçado e numeração automática dos canais de escoamento pelos talvegues
+- [ ] Traçado da rede de tubulação enterrada (grafo: risers → coletores → exutório) com perfil longitudinal do tubo (cotas de geratriz, recobrimento) e caixas de inspeção automáticas
+- [ ] Posicionamento assistido de WASCOBs/barraginhas/caixas secas nos pontos de acúmulo de fluxo
+- [ ] Comparador de cenários: canais superficiais × underground outlet (área plantável, movimentação de terra, custo estimado)
 - [ ] Edição vetorial no mapa com recálculo de perfis/volumes
 - [ ] Gráfico de perfil transversal (folga/canal/camalhão/solo/declividade)
 
