@@ -99,6 +99,41 @@ Etapas executadas como **jobs assíncronos** (fila), com progresso reportado ao 
 
 **Bibliotecas (serviço Python):** `GDAL/rasterio`, `WhiteboxTools` (hidrologia e filtragem do MDS — open source, MIT), `pysheds` (alternativa leve para D8/acumulação), `shapely/geopandas` (vetores), `scipy` (suavização/perfis), `matplotlib` ou frontend para gráficos de perfil.
 
+### 4.1 Diagnóstico hidrológico do talhão — morfometria e ordenamento da rede (benchmark: plugins QGIS de hidrologia)
+
+Referência de mercado analisada: plugins QGIS **ArcGeek Calculator** (delimitação de bacia, ordenamento de Strahler, métricas), **Drainage Basin Geomorphology** (morfometria), **HydroSuiteBM Pro** (parâmetros de bacia, perfil de elevação, curva hipsométrica) e **Flood Simulation Studio** (extensão/profundidade de inundação e estruturas afetadas). São ferramentas de escala de bacia (km²), mas o **padrão de entregável** deles — mapa + painel lateral de métricas + gráficos — e vários indicadores se aproveitam diretamente na escala do talhão (10–200 ha, MDT de 10 cm). O nosso app deve gerar, automaticamente após a etapa 4 do pipeline, um **"Diagnóstico Hidrológico"** por talhão e por microbacia interna:
+
+| Indicador (como aparece nos plugins) | Como calculamos | Para que serve no nosso projeto |
+|---|---|---|
+| Delimitação de sub-bacias numeradas (SB-1, SB-2…) com área | Watershed a partir de cada exutório/ponto de deságue (whitebox `Watershed`/`Subbasins`) | **Área de contribuição (A)** de cada canal, riser, WASCOB e barraginha → método racional; numeração casa com "Canal de Escoamento 0N" |
+| **Ordem de Strahler** dos cursos + contagem por ordem | `StrahlerStreamOrder` sobre a rede extraída | Regra de recomendação: ordem 1 (sulcos efêmeros) → terraços/barraginhas; ordem ≥ 2 → canal vegetado; ordem ≥ 3 ou trecho encaixado → WASCOB/desague subterrâneo/dissipador |
+| **Caminho de fluxo mais longo** (longest flow path) + **perfil de elevação** | `LongestFlowpath`; amostragem do MDT ao longo da linha | **L e H do Kirpich** (tempo de concentração) sem entrada manual; **comprimento de rampa** que cada terraço secciona; perfil longitudinal de canais e tubos |
+| Área, perímetro, comprimento (Lb), largura (Wb) da bacia | Geometria dos polígonos de microbacia | Coeficiente de compacidade (Kc/Gravelius) e razão de elongação (Re): bacias "redondas" (Kc → 1) concentram o pico de enxurrada → folga maior no dimensionamento |
+| **Densidade de drenagem (Dd)** e razão de bifurcação (Rb) | Comprimento total da rede / área; contagem por ordem | **Índice de susceptibilidade à erosão** do talhão (Dd alta = solo pouco permeável/relevo dissecado) — prioriza onde investir; Rb tem pouco valor estatístico em talhão (mostrar só em áreas > 50 ha) |
+| **Relevo (Rh)** e **curva hipsométrica (HI)** | Cotas máx/mín; integral hipsométrica do MDT | HI > 0,6 = relevo jovem/instável (erosão ativa); 0,35–0,6 = maduro; < 0,35 = senil. Indicador de "estágio erosivo" no relatório |
+| Painel lateral de métricas + gráficos (perfil, hipsométrica, histograma por ordem) | Componente de UI reutilizável | **Padrão visual do nosso relatório** e da tela de diagnóstico (mapa à esquerda, métricas à direita, legenda, escala, norte) |
+
+Todos os indicadores entram no relatório como **"Diagnóstico Hidrológico"** (antes do dimensionamento), justificando tecnicamente as decisões de projeto — argumento de venda que o concorrente da seção 1.1 não apresenta.
+
+### 4.2 Simulação de empoçamento e enxurrada — cenário "antes × depois" (benchmark: Flood Simulation Studio)
+
+O plugin de inundação mostra extensão, classes de profundidade (0,3–1 m, 1–2 m, > 2 m), estruturas afetadas e pontos de medição. Adaptação para o talhão, em três níveis de esforço crescente:
+
+1. **MVP — HAND (Height Above Nearest Drainage):** altura de cada célula acima do talvegue mais próximo (whitebox `ElevationAboveStream`). Classes baixas de HAND = faixa de risco de enxurrada/deposição; alta = zona de geração de escoamento. Barato e robusto, e o mapa "risco por proximidade do talvegue" é exatamente o que o produtor entende.
+2. **MVP — Empoçamento por depressões:** profundidade das depressões do MDT original (`FillDepressions` − MDT) → mapa de **lâmina de empoçamento** e volume por depressão → indica onde há encharcamento (candidatos a *tile drainage*/*blind inlet*, seção 5.5.3) e onde barraginhas naturais já existem.
+3. **v1.1 — Simulação com o projeto embutido:** "queimar" camalhões, canais, bacias e risers no MDT (MDT modificado) e re-rodar hidrologia + balanço volumétrico para a chuva de projeto → mapa de **lâmina retida por bolsão de terraço** e de **caminhos de fluxo residuais**. Gera o par de mapas **"antes × depois"** do projeto (extensão e profundidade em classes de cor, como no plugin) — validação visual do dimensionamento e peça central do relatório comercial.
+4. **v2 — Modelo hidrodinâmico 2D simplificado** (ex.: LISFLOOD-FP/ANUGA ou solver raster próprio) apenas se houver demanda de projeto de estruturas grandes.
+
+**"Estruturas afetadas"** → no nosso caso, ativos afetados pela enxurrada: carreadores/estradas, sede, galpões, cercas, nascentes/APP, talhões vizinhos — intersecção automática da mancha com camadas de ativos (marcadas manualmente no MVP). **"Gauge points"** → **pontos de monitoramento** (pluviômetro, régua em barraginha, sensor de nível em riser) — v2 IoT, mas o modelo de dados já prevê `OutletStructure.kind = MONITORAMENTO`.
+
+### 4.3 Interoperabilidade com QGIS
+
+Público-alvo (consultores e agrônomos) já usa QGIS. Decisões:
+- **Exportar projeto completo em GeoPackage** com estilos QML (curvas coloridas por elevação, rede por ordem de Strahler, terraços, canais, tubulação, bacias) → abre no QGIS com a mesma cartografia do app.
+- Importar vetores editados no QGIS de volta (round-trip por `id` estável das feições).
+- Usar `qgis_process` headless no geo-engine **não é obrigatório** — WhiteboxTools cobre o cálculo; QGIS fica como via de troca e conferência.
+- v2: plugin QGIS leve "abrir no app" para consultores que preferem editar a locação no desktop.
+
 ---
 
 ## 5. Fundamentos de Cálculo (memorial)
@@ -244,6 +279,7 @@ O relatório deve recomendar automaticamente (regras por classe de declive/uso):
 
 - Base: ortomosaico (tiles COG). Camadas ligáveis: hillshade, declividade, curvas de nível **coloridas por classe de elevação** (rampa amarelo→vermelho como no concorrente), **setas de fluxo** (azuis), rede de drenagem, microbacias, terraços (verde), canais de escoamento (ciano, **rotulados e numerados**), **rede de tubulação enterrada** (linha tracejada roxa com diâmetro rotulado, risers como círculos, caixas de inspeção como quadrados), bacias/WASCOBs/barraginhas (polígonos), estruturas de queda e dissipadores (ícones de alerta/queda).
 - Ferramentas: medir distância/área, inspecionar cota/declividade no cursor, perfil ao longo de linha desenhada.
+- **Painel lateral de diagnóstico** (padrão dos plugins QGIS da seção 4.1): ao clicar numa microbacia, mostra área, perímetro, Lb/Wb, Dd, Kc/Re, Rh, HI, tc e os gráficos (perfil de elevação do caminho mais longo, curva hipsométrica, contagem de cursos por ordem). Camadas extras: rede de drenagem **estilizada por ordem de Strahler** (espessura crescente), microbacias rotuladas (SB-01…), mapa HAND e mapa de lâmina de empoçamento/enxurrada em classes de cor (antes × depois, com controle deslizante de comparação).
 - Stack sugerida: **MapLibre GL JS** (ou Leaflet) + `titiler` para servir COG; vetores em GeoJSON com edição via mapbox-gl-draw.
 
 ### 7.3 Relatório PDF (paridade com os slides do concorrente)
@@ -330,10 +366,21 @@ model PipelineSegment {  // rede de tubulação enterrada (grafo direcionado)
 
 model OutletStructure {  // nós da rede de escoamento
   id, projectId, kind /*RISER|BLIND_INLET|CAIXA_INSPECAO|COMPORTA|PIPE_DROP|
-                        DISSIPADOR|WASCOB|BARRAGINHA|CAIXA_SECA|EXUTORIO*/,
+                        DISSIPADOR|WASCOB|BARRAGINHA|CAIXA_SECA|EXUTORIO|MONITORAMENTO*/,
   geometry Json /*Point*/, elevationM Float,
   params Json /*orifício (Cd, diâmetro, H), volume da bacia, riprap etc.*/,
   drainsTerraceId String?, pipelineSegmentId String?, alerts Json
+}
+
+model Subbasin {  // diagnóstico hidrológico (seção 4.1) — uma linha por microbacia
+  id, projectId, index Int, label String /* "SB-01" */, outletStructureId String?,
+  geometry Json /*Polygon*/, areaHa Float, perimeterM Float,
+  lengthLbM Float, widthWbM Float, reliefRhM Float,
+  longestFlowPathM Float, longestFlowPath Json /*LineString*/,
+  tcMin Float /*Kirpich*/, drainageDensityKmKm2 Float, bifurcationRatio Float?,
+  compactnessKc Float, elongationRe Float, hypsometricIntegral Float,
+  streamCountByOrder Json /*{1:n,2:n,...}*/, erosionSusceptibility /*BAIXA|MEDIA|ALTA*/,
+  hypsometricCurve Json, elevationProfile Json
 }
 ```
 
@@ -367,6 +414,7 @@ O Mavic 3M carrega 4 câmeras multiespectrais (G, R, RedEdge, NIR) além da RGB.
 - Modelo de dimensionamento e locação de terraços em nível (Pruski et al.): [SciELO — Engenharia Agrícola](https://www.scielo.br/j/eagri/a/yPCYKgdFVmv9sjxtjdMFHLN/), [SciELO — Software para planejamento de terraceamento](https://www.scielo.br/j/eagri/a/S7V68FDbW8rTy9wFYFSM8Xm/), [SciELO — Dimensionamento pelo balanço volumétrico](https://scielo.br/scielo.php?pid=S1415-43662004000200001&script=sci_arttext)
 - Software Terraço 4.1 (UFV) — benchmark: [Manual](https://arquivo.ufv.br/ctq/terraco/manual.html), [Estudo de caso de dimensionamento](https://www.produccioncientificaluz.org/index.php/agronomia/article/view/34728)
 - Hidrologia open source: [WhiteboxTools — Hydrological Analysis](https://www.whiteboxgeo.com/manual/wbt_book/available_tools/hydrological_analysis.html), [WhiteboxTools — Home](https://jblindsay.github.io/ghrg/WhiteboxTools/index.html), [Watershed delineation com WBT no QGIS](https://rashms.com/gis/watershed-delineation-using-whitebox-tools-wbt-plugin-in-qgis/)
+- Benchmark de plugins QGIS de hidrologia (carrossel "10 Best QGIS Plugins Used for Hydrology Mapping", @urbandesignlab.in): ArcGeek Calculator (delimitação, ordenamento de Strahler, métricas de bacia), Drainage Basin Geomorphology (morfometria: Lb, Wb, Dd, Rb, Re, Rh, perfil longitudinal), HydroSuiteBM Pro (caminho de fluxo mais longo, perfil de elevação, curva hipsométrica, contagem por ordem), Flood Simulation Studio (extensão/profundidade de inundação, estruturas afetadas, pontos de medição) — todos disponíveis no repositório oficial de plugins do QGIS (plugins.qgis.org); usar como referência de indicadores e de layout, não como dependência.
 - Drone/fotogrametria: [DJI Mavic 3 Multispectral RTK — especificações](https://www.nwdrones.com.br/drone-dji-mavic-3-multispectral-rtk), [Guia de mapeamento aéreo com drone](https://odrones.com.br/mapeamento-aereo-com-drone/), [Processamento de imagens de drone (ortho/MDS/MDT)](https://terramapeada.com.br/blog/processamento-de-imagens-de-drone)
 - Deságue subterrâneo e drenagem enterrada (padrões NRCS/USDA): [Underground Outlet — Riser (Code 620), overview](https://www.nrcs.usda.gov/sites/default/files/2022-10/Underground_Outlet_620_Overview_9_2020.pdf), [Subsurface Drainage (NRCS 606)](https://agbmps.osu.edu/bmp/subsurface-drainage-nrcs-606), [NRCS Engineering Field Handbook cap. 14 — Water Management/Drainage (PDF)](https://www.wcc.nrcs.usda.gov/ftpref/wntsc/Drainage/Drainmod/Refferences/EFH14.pdf)
 - Bacias de sedimentação e canais vegetados: [WASCOB (Code 638), overview NRCS](https://www.nrcs.usda.gov/sites/default/files/2022-10/Water_and_Sediment_Control_Basin_638_Overview_Oct_2017.pdf), [WASCOB — dry dam construction (Fairfield SWCD)](https://fairfieldswcd.org/water-sediment-control-basin-wascob/), [Norma WASCOB 638 Wisconsin (PDF)](https://dnr.wisconsin.gov/sites/default/files/topic/Wetlands/638_WI_CPS_Water_and_Sediment_%28Con%29trol_Basin_2018.pdf), [Grassed waterway management — Purdue Extension](https://extension.purdue.edu/uav/in-field-conservation/grassed-waterway-management.html), [Estruturas de controle de erosão agrícola — Ontário](https://www.ontario.ca/page/agricultural-erosion-control-structures)
@@ -384,6 +432,8 @@ O Mavic 3M carrega 4 câmeras multiespectrais (G, R, RedEdge, NIR) além da RGB.
 - [ ] Validação/ingestão GeoTIFF → COG; MDS→MDT (RemoveOffTerrainObjects + suavização)
 - [ ] Declividade, hillshade, curvas de nível suavizadas e coloridas por elevação
 - [ ] Hidrologia: breach depressions, D8, acúmulo de fluxo, rede de drenagem, microbacias, setas de fluxo
+- [ ] Diagnóstico hidrológico (seção 4.1): sub-bacias numeradas com área, ordem de Strahler, caminho de fluxo mais longo + perfil, Kirpich automático, Dd/Kc/Re/Rh/HI, índice de susceptibilidade à erosão; painel lateral de métricas com gráficos
+- [ ] Mapas de risco (seção 4.2, nível MVP): HAND (`ElevationAboveStream`) e lâmina de empoçamento por depressões com volume
 - [ ] titiler servindo tiles; visualizador com camadas ligáveis
 
 **Fase 2 — Motor de cálculo**
@@ -405,5 +455,7 @@ O Mavic 3M carrega 4 câmeras multiespectrais (G, R, RedEdge, NIR) além da RGB.
 
 **Fase 4 — Entregáveis**
 - [ ] Relatório PDF (capa, card de precipitação crítica, tabela comparativa, mapas, perfis, memorial, quantitativos, práticas recomendadas)
+- [ ] Seção "Diagnóstico Hidrológico" no relatório (mapa de sub-bacias/ordem de Strahler + painel de métricas + gráficos) e par de mapas **antes × depois** com o projeto embutido no MDT (seção 4.2, nível v1.1) e lista de ativos afetados
+- [ ] Exportação GeoPackage com estilos QML (round-trip com QGIS, seção 4.3)
 - [ ] Exportações SHP/KML/GeoJSON/DXF + linhas AB para piloto automático
 - [ ] Testes end-to-end com fixture de drone e golden tests de cálculo
