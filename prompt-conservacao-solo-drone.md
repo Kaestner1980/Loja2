@@ -408,18 +408,53 @@ O Mavic 3M carrega 4 câmeras multiespectrais (G, R, RedEdge, NIR) além da RGB.
 4. **Bacias de contenção (barraginhas)**: posicionamento automático nos deságues com dimensionamento volumétrico.
 5. **Monitoramento temporal**: comparar MDS de safras sucessivas para detectar sulcos/voçorocas nascentes.
 
-## 13. Referências
+## 13. Módulo Terraplanagem — corte e aterro integrado à drenagem (levantamento GNSS RTK)
 
-- Lombardi Neto et al. — espaçamento de terraços com fatores de uso e manejo: [FATEC — Espaçamento e Terraços (PDF)](http://www.fatecc.com.br/ead-moodle/mecanizacaoagricola/apostilas/espacamentoterracos.pdf), [UFLA — Aula: conceitos e definições de terraços (PDF)](https://dcs.ufla.br/images/imagens_dcs//pdf/Prof%20Marx/Aulas%208%20e%209/Aula%208.pdf), [ESALQ Visão Agrícola — Terraceamento (PDF)](https://www.esalq.usp.br/visaoagricola/sites/default/files/VA9-Ambiente03.pdf)
-- Modelo de dimensionamento e locação de terraços em nível (Pruski et al.): [SciELO — Engenharia Agrícola](https://www.scielo.br/j/eagri/a/yPCYKgdFVmv9sjxtjdMFHLN/), [SciELO — Software para planejamento de terraceamento](https://www.scielo.br/j/eagri/a/S7V68FDbW8rTy9wFYFSM8Xm/), [SciELO — Dimensionamento pelo balanço volumétrico](https://scielo.br/scielo.php?pid=S1415-43662004000200001&script=sci_arttext)
-- Software Terraço 4.1 (UFV) — benchmark: [Manual](https://arquivo.ufv.br/ctq/terraco/manual.html), [Estudo de caso de dimensionamento](https://www.produccioncientificaluz.org/index.php/agronomia/article/view/34728)
-- Hidrologia open source: [WhiteboxTools — Hydrological Analysis](https://www.whiteboxgeo.com/manual/wbt_book/available_tools/hydrological_analysis.html), [WhiteboxTools — Home](https://jblindsay.github.io/ghrg/WhiteboxTools/index.html), [Watershed delineation com WBT no QGIS](https://rashms.com/gis/watershed-delineation-using-whitebox-tools-wbt-plugin-in-qgis/)
-- Benchmark de plugins QGIS de hidrologia (carrossel "10 Best QGIS Plugins Used for Hydrology Mapping", @urbandesignlab.in): ArcGeek Calculator (delimitação, ordenamento de Strahler, métricas de bacia), Drainage Basin Geomorphology (morfometria: Lb, Wb, Dd, Rb, Re, Rh, perfil longitudinal), HydroSuiteBM Pro (caminho de fluxo mais longo, perfil de elevação, curva hipsométrica, contagem por ordem), Flood Simulation Studio (extensão/profundidade de inundação, estruturas afetadas, pontos de medição) — todos disponíveis no repositório oficial de plugins do QGIS (plugins.qgis.org); usar como referência de indicadores e de layout, não como dependência.
-- Drone/fotogrametria: [DJI Mavic 3 Multispectral RTK — especificações](https://www.nwdrones.com.br/drone-dji-mavic-3-multispectral-rtk), [Guia de mapeamento aéreo com drone](https://odrones.com.br/mapeamento-aereo-com-drone/), [Processamento de imagens de drone (ortho/MDS/MDT)](https://terramapeada.com.br/blog/processamento-de-imagens-de-drone)
-- Deságue subterrâneo e drenagem enterrada (padrões NRCS/USDA): [Underground Outlet — Riser (Code 620), overview](https://www.nrcs.usda.gov/sites/default/files/2022-10/Underground_Outlet_620_Overview_9_2020.pdf), [Subsurface Drainage (NRCS 606)](https://agbmps.osu.edu/bmp/subsurface-drainage-nrcs-606), [NRCS Engineering Field Handbook cap. 14 — Water Management/Drainage (PDF)](https://www.wcc.nrcs.usda.gov/ftpref/wntsc/Drainage/Drainmod/Refferences/EFH14.pdf)
-- Bacias de sedimentação e canais vegetados: [WASCOB (Code 638), overview NRCS](https://www.nrcs.usda.gov/sites/default/files/2022-10/Water_and_Sediment_Control_Basin_638_Overview_Oct_2017.pdf), [WASCOB — dry dam construction (Fairfield SWCD)](https://fairfieldswcd.org/water-sediment-control-basin-wascob/), [Norma WASCOB 638 Wisconsin (PDF)](https://dnr.wisconsin.gov/sites/default/files/topic/Wetlands/638_WI_CPS_Water_and_Sediment_%28Con%29trol_Basin_2018.pdf), [Grassed waterway management — Purdue Extension](https://extension.purdue.edu/uav/in-field-conservation/grassed-waterway-management.html), [Estruturas de controle de erosão agrícola — Ontário](https://www.ontario.ca/page/agricultural-erosion-control-structures)
-- Barraginhas e caixas secas (Brasil): [Barraginhas, caixas secas e bacias de contenção — capítulo técnico (PDF)](https://www.meridapublishers.com/crta/cap3.pdf), [Bacias de infiltração (barraginhas) — Brazilian Journals (PDF)](https://ojs.brazilianjournals.com.br/ojs/index.php/BRJD/article/download/78892/54581/195590), [Controle de erosão em estradas rurais — SciELO](https://www.scielo.br/j/sn/a/JdwHD7j6yDYynxMV7LBc6QD/?lang=pt)
-- Tubos de drenagem (mercado BR): [Tubo dreno PEAD corrugado — NTC Brasil](https://www.ntcbrasil.com.br/tubo-dreno-pead-corrugado-para-drenagem/), [Tipos de tubo dreno PEAD — Diprotec](https://diprotecgeo.com.br/faq/tubo-dreno/tipos-tubo-dreno), [Tubo corrugado para drenagem — Tucano](https://tucano.ind.br/blog/tubo-corrugado-para-drenagem)
+Caso de uso real do escritório: levantamento com **par GNSS RTK (base + rover)** e projeto de corte e aterro (plataforma para galpão/pátio, estrada interna ou **sistematização de área agrícola**), hoje feito em QGIS/AutoCAD. O app entra em três momentos — **antes do campo, depois do campo e na entrega** — e o diferencial é que a terraplanagem nasce **com a drenagem e a preservação da camada fértil resolvidas**, coisa que QGIS e AutoCAD puros não fazem.
+
+### 13.1 Antes do campo — plano de levantamento
+
+- Gerar sobre o ortomosaico do drone o **plano de pontos RTK**: malha regular (10–20 m conforme relevo) + **linhas de quebra (breaklines)** obrigatórias em talvegues, cristas, bordas de estrada, canais existentes e pés/cristas de talude — o app identifica esses locais automaticamente pelo MDS (acúmulo de fluxo, curvatura) e exporta **KML/CSV de navegação para o rover** (stakeout dos pontos a coletar).
+- **Codificação de campo padronizada** (ex.: `TN` terreno natural, `BL` breakline, `CE` canal existente, `ES` estrada, `NA` nascente, `CX` caixa) para o import interpretar sem retrabalho.
+- Checklist da base: coordenada de referência via **IBGE-PPP** (SIRGAS 2000) ou RBMC; registro de PDOP/fix e número de épocas por ponto para o memorial.
+
+### 13.2 Depois do campo — MDT híbrido e projeto
+
+- **Import RTK** (CSV/TXT: E, N, Z, código, precisão) → TIN com breaklines → MDT do levantamento.
+- **MDT híbrido**: MDS do drone (denso) + pontos RTK (verdade de campo). O app calcula os **resíduos verticais** MDS − RTK, aplica correção de offset/plano e reporta **RMSE** — vira uma página do memorial ("acurácia do modelo") e sustenta a ART.
+- **Projeto da superfície** (três modos):
+  1. **Plataforma/plano definido** — cota e caimentos informados; taludes de corte/aterro com inclinação configurável (ex.: 1:1,5) gerados automaticamente até encontrar o terreno.
+  2. **Plano de melhor ajuste (mínimos quadrados)** — plano que minimiza o volume movimentado, com declividades mínima/máxima como restrição (sistematização agrícola clássica).
+  3. **Superfície otimizada para drenagem** — superfície de declividade variável que minimiza corte + aterro **sujeita a**: declive mínimo para escoar (ex.: 0,2–0,5%), declive máximo, direção de deságue para um exutório escolhido e sem depressões fechadas (programação linear sobre a grade). É o conceito de sistemas comerciais de land-forming; entrega o menor volume com drenagem garantida.
+- **Volumes**: corte e aterro por célula (MDT − projeto), com **fator de empolamento** no corte e **fator de compactação** no aterro; **balanceamento automático** (busca da cota que iguala corte × aterro compensado); volumes por setor/quadra; **diagrama de massas** simplificado (distância média de transporte).
+- **Mapa isópaco corte/aterro** (vermelho = corte, azul = aterro, escala em metros — mesma linguagem do gráfico de perfil do concorrente), **seções transversais** a cada N metros com cotas de terreno e projeto, e curvas de nível do projeto.
+- **Drenagem integrada da terraplanagem** (o que ninguém entrega junto): canaleta de crista acima do talude de corte, dreno de pé de aterro, caimento da plataforma verificado (sem ponto baixo), deságue obrigatório em estrutura da seção 5.5 (canal vegetado, dissipador, barraginha, tubo enterrado), verificação da velocidade nos taludes e recomendação de proteção vegetal/enrocamento. O coeficiente de escoamento da plataforma (compactada) entra no método racional a jusante.
+- **Decapagem e reposição da camada fértil**: espessura da camada A informada por tradagens/trincheiras (pontos RTK codificados `CA` com espessura) → **volume de decapagem**, locais de estoque (leiras) fora das rotas de máquinas e da linha de drenagem, e **plano de reposição** sobre as áreas de aterro e taludes. Quantifica o que o projeto preserva de solo fértil — alinhado ao objetivo central do app.
+
+### 13.3 Execução e entrega — mais valor para o cliente
+
+- **Piqueteamento**: tabela e arquivo de stakeout para o rover (E, N, Z projeto, corte/aterro em cada estaca, códigos), malha de estacas configurável (ex.: 10 × 10 m) + estacas de crista/pé de talude.
+- **Controle de máquina**: exportar superfície de projeto em **LandXML** (padrão para Civil 3D e sistemas de controle de lâmina/laser-GNSS) e DXF 3D com camadas nomeadas (terreno, projeto, seções, drenagem, estacas) para fechar a planta no AutoCAD.
+- **As-built e medição de obra**: novo voo do drone ou passada RTK ao fim de cada etapa → volume executado × projetado → **boletim de medição** para pagamento do empreiteiro e evidência para o cliente.
+- **Entregáveis extras**: comparação 3D antes × depois, relatório PDF com memorial (acurácia RTK/drone, volumes, balanceamento, drenagem, decapagem), planta em formato A3/A2 NBR (compatível com os modelos de planta topográfica já usados pelo escritório), lista de quantitativos (m³ corte/aterro, m³ decapagem, m de canaletas/drenos/tubos, m² de proteção de taludes) para orçamento.
+
+### 13.4 Posição do app em relação a QGIS e AutoCAD
+
+QGIS já faz TIN, diferença de rasters e "volume de superfície"; AutoCAD (sem Civil 3D) não calcula volumes de forma prática; Civil 3D faz, mas é caro. O app cobre o que falta nos dois: **balanceamento automático, superfície otimizada para drenagem, decapagem, drenagem integrada, stakeout e boletim de medição**, e devolve tudo em GeoPackage/DXF/LandXML para o consultor finalizar a planta na ferramenta que preferir. Enquanto o app não existe, o mesmo motor pode nascer como **script Python/QGIS (v0)** — CSV RTK → MDT → volumes balanceados → isópaco + seções + stakeout — e depois ser encapsulado no geo-engine.
+
+### 13.5 Modelo de dados (extensão)
+
+```prisma
+model EarthworkProject {
+  id, conservationProjectId String, kind /*PLATAFORMA|MELHOR_AJUSTE|OTIMIZADA_DRENAGEM*/,
+  surveyPointsAssetId String /*CSV RTK importado*/, hybridDtmAssetId String,
+  rmseM Float, designSurfaceAssetId String, params Json /*cotas, caimentos, taludes,
+  declives mín/máx, exutório, fatores de empolamento/compactação*/,
+  cutM3 Float, fillM3 Float, fillCompensatedM3 Float, balanceElevationM Float?,
+  topsoilThicknessM Float?, topsoilStripM3 Float?, stockpiles Json, sections Json,
+  stakeout Json, drainageChecks Json, asBuiltAssetIds String[]
+}
+```
 
 ## 14. Checklist de Implementação (para o Opus)
 
@@ -459,3 +494,24 @@ O Mavic 3M carrega 4 câmeras multiespectrais (G, R, RedEdge, NIR) além da RGB.
 - [ ] Exportação GeoPackage com estilos QML (round-trip com QGIS, seção 4.3)
 - [ ] Exportações SHP/KML/GeoJSON/DXF + linhas AB para piloto automático
 - [ ] Testes end-to-end com fixture de drone e golden tests de cálculo
+
+**Fase 5 — Terraplanagem integrada (seção 13)**
+- [ ] Script v0 (Python/QGIS, CLI): CSV RTK → TIN com breaklines → MDT; MDT híbrido drone+RTK com RMSE; volumes corte/aterro por grade com empolamento/compactação; balanceamento automático; isópaco GeoTIFF; seções; stakeout CSV; DXF
+- [ ] Plano de levantamento RTK (malha + breaklines sugeridas pelo MDS) com export KML/CSV para o rover e dicionário de códigos
+- [ ] Modos de superfície: plataforma com taludes, plano de melhor ajuste, superfície otimizada para drenagem (LP com declive mín/máx e exutório)
+- [ ] Drenagem integrada: canaleta de crista, dreno de pé, verificação de caimento e deságue em estrutura da seção 5.5
+- [ ] Decapagem: volume da camada fértil, leiras de estoque, plano de reposição
+- [ ] Exportações LandXML (superfície de projeto) e DXF 3D por camadas; boletim de medição as-built (drone/RTK) por etapa
+
+## 15. Referências
+
+- Lombardi Neto et al. — espaçamento de terraços com fatores de uso e manejo: [FATEC — Espaçamento e Terraços (PDF)](http://www.fatecc.com.br/ead-moodle/mecanizacaoagricola/apostilas/espacamentoterracos.pdf), [UFLA — Aula: conceitos e definições de terraços (PDF)](https://dcs.ufla.br/images/imagens_dcs//pdf/Prof%20Marx/Aulas%208%20e%209/Aula%208.pdf), [ESALQ Visão Agrícola — Terraceamento (PDF)](https://www.esalq.usp.br/visaoagricola/sites/default/files/VA9-Ambiente03.pdf)
+- Modelo de dimensionamento e locação de terraços em nível (Pruski et al.): [SciELO — Engenharia Agrícola](https://www.scielo.br/j/eagri/a/yPCYKgdFVmv9sjxtjdMFHLN/), [SciELO — Software para planejamento de terraceamento](https://www.scielo.br/j/eagri/a/S7V68FDbW8rTy9wFYFSM8Xm/), [SciELO — Dimensionamento pelo balanço volumétrico](https://scielo.br/scielo.php?pid=S1415-43662004000200001&script=sci_arttext)
+- Software Terraço 4.1 (UFV) — benchmark: [Manual](https://arquivo.ufv.br/ctq/terraco/manual.html), [Estudo de caso de dimensionamento](https://www.produccioncientificaluz.org/index.php/agronomia/article/view/34728)
+- Hidrologia open source: [WhiteboxTools — Hydrological Analysis](https://www.whiteboxgeo.com/manual/wbt_book/available_tools/hydrological_analysis.html), [WhiteboxTools — Home](https://jblindsay.github.io/ghrg/WhiteboxTools/index.html), [Watershed delineation com WBT no QGIS](https://rashms.com/gis/watershed-delineation-using-whitebox-tools-wbt-plugin-in-qgis/)
+- Benchmark de plugins QGIS de hidrologia (carrossel "10 Best QGIS Plugins Used for Hydrology Mapping", @urbandesignlab.in): ArcGeek Calculator (delimitação, ordenamento de Strahler, métricas de bacia), Drainage Basin Geomorphology (morfometria: Lb, Wb, Dd, Rb, Re, Rh, perfil longitudinal), HydroSuiteBM Pro (caminho de fluxo mais longo, perfil de elevação, curva hipsométrica, contagem por ordem), Flood Simulation Studio (extensão/profundidade de inundação, estruturas afetadas, pontos de medição) — todos disponíveis no repositório oficial de plugins do QGIS (plugins.qgis.org); usar como referência de indicadores e de layout, não como dependência.
+- Drone/fotogrametria: [DJI Mavic 3 Multispectral RTK — especificações](https://www.nwdrones.com.br/drone-dji-mavic-3-multispectral-rtk), [Guia de mapeamento aéreo com drone](https://odrones.com.br/mapeamento-aereo-com-drone/), [Processamento de imagens de drone (ortho/MDS/MDT)](https://terramapeada.com.br/blog/processamento-de-imagens-de-drone)
+- Deságue subterrâneo e drenagem enterrada (padrões NRCS/USDA): [Underground Outlet — Riser (Code 620), overview](https://www.nrcs.usda.gov/sites/default/files/2022-10/Underground_Outlet_620_Overview_9_2020.pdf), [Subsurface Drainage (NRCS 606)](https://agbmps.osu.edu/bmp/subsurface-drainage-nrcs-606), [NRCS Engineering Field Handbook cap. 14 — Water Management/Drainage (PDF)](https://www.wcc.nrcs.usda.gov/ftpref/wntsc/Drainage/Drainmod/Refferences/EFH14.pdf)
+- Bacias de sedimentação e canais vegetados: [WASCOB (Code 638), overview NRCS](https://www.nrcs.usda.gov/sites/default/files/2022-10/Water_and_Sediment_Control_Basin_638_Overview_Oct_2017.pdf), [WASCOB — dry dam construction (Fairfield SWCD)](https://fairfieldswcd.org/water-sediment-control-basin-wascob/), [Norma WASCOB 638 Wisconsin (PDF)](https://dnr.wisconsin.gov/sites/default/files/topic/Wetlands/638_WI_CPS_Water_and_Sediment_%28Con%29trol_Basin_2018.pdf), [Grassed waterway management — Purdue Extension](https://extension.purdue.edu/uav/in-field-conservation/grassed-waterway-management.html), [Estruturas de controle de erosão agrícola — Ontário](https://www.ontario.ca/page/agricultural-erosion-control-structures)
+- Barraginhas e caixas secas (Brasil): [Barraginhas, caixas secas e bacias de contenção — capítulo técnico (PDF)](https://www.meridapublishers.com/crta/cap3.pdf), [Bacias de infiltração (barraginhas) — Brazilian Journals (PDF)](https://ojs.brazilianjournals.com.br/ojs/index.php/BRJD/article/download/78892/54581/195590), [Controle de erosão em estradas rurais — SciELO](https://www.scielo.br/j/sn/a/JdwHD7j6yDYynxMV7LBc6QD/?lang=pt)
+- Tubos de drenagem (mercado BR): [Tubo dreno PEAD corrugado — NTC Brasil](https://www.ntcbrasil.com.br/tubo-dreno-pead-corrugado-para-drenagem/), [Tipos de tubo dreno PEAD — Diprotec](https://diprotecgeo.com.br/faq/tubo-dreno/tipos-tubo-dreno), [Tubo corrugado para drenagem — Tucano](https://tucano.ind.br/blog/tubo-corrugado-para-drenagem)
