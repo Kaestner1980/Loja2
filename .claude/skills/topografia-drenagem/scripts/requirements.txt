@@ -1,0 +1,8 @@
+# obrigatórias
+numpy>=1.21
+matplotlib>=3.5
+# opcionais (a skill funciona sem elas, com fallback)
+scipy>=1.7        # Delaunay/KD-tree mais rápidos
+ezdxf>=1.0        # DXF completo (sem ele usa gravador DXF R12 próprio)
+# triangle        # Delaunay restrita às linhas de quebra (opcional)
+# pyproj          # só para os testes de conferência da geodésia
